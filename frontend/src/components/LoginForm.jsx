@@ -20,7 +20,7 @@ const LoginForm = ({ onLogin, error }) => {
 
   // 组件加载时读取保存的账号信息
   useEffect(() => {
-    const savedCredentials = localStorage.getItem('linuxdo-credentials');
+    const savedCredentials = localStorage.getItem('linux-credentials');
     if (savedCredentials) {
       try {
         const { username: savedUsername, password: savedPassword, rememberMe: savedRememberMe } = JSON.parse(savedCredentials);
@@ -31,7 +31,7 @@ const LoginForm = ({ onLogin, error }) => {
         }
       } catch (error) {
         console.error('读取保存的账号信息失败:', error);
-        localStorage.removeItem('linuxdo-credentials');
+        localStorage.removeItem('linux-credentials');
       }
     }
   }, []);
@@ -60,10 +60,10 @@ const LoginForm = ({ onLogin, error }) => {
           password,
           rememberMe: true
         };
-        localStorage.setItem('linuxdo-credentials', JSON.stringify(credentials));
+        localStorage.setItem('linux-credentials', JSON.stringify(credentials));
       } else {
         // 如果没有选择记住我，清除保存的信息
-        localStorage.removeItem('linuxdo-credentials');
+        localStorage.removeItem('linux-credentials');
       }
 
       await onLogin(username, password);
@@ -72,24 +72,24 @@ const LoginForm = ({ onLogin, error }) => {
     }
   };
 
-  const handleLinuxDoLogin = () => {
-    window.location.href = 'http://localhost:3001/auth/linuxdo';
+  const handlelinuxLogin = () => {
+    window.location.href = 'http://localhost:3001/auth/linux';
   };
 
   const isValid = username && password && validateUsername(username) && validatePassword(password);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-      {/* LinuxDo登录选项 (暂时注释掉) */}
+      {/* linux登录选项 (暂时注释掉) */}
       {/* <div className="mb-6">
         <button
-          onClick={handleLinuxDoLogin}
-          className="w-full flex items-center justify-center px-4 py-3 border border-linuxdo-300 rounded-lg text-sm font-medium text-linuxdo-700 bg-linuxdo-50 hover:bg-linuxdo-100 transition-colors"
+          onClick={handlelinuxLogin}
+          className="w-full flex items-center justify-center px-4 py-3 border border-linux-300 rounded-lg text-sm font-medium text-linux-700 bg-linux-50 hover:bg-linux-100 transition-colors"
         >
           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
-          使用 LinuxDo 账号登录
+          使用 linux 账号登录
           <ExternalLink size={16} className="ml-2" />
         </button>
 
@@ -116,7 +116,7 @@ const LoginForm = ({ onLogin, error }) => {
               onChange={(e) => setUsername(e.target.value.toLowerCase())}
               placeholder="输入你的用户名"
               maxLength={8}
-              className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-linuxdo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${
+              className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-linux-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${
                 username && !isValid
                   ? 'border-red-300 bg-red-50 dark:border-red-600 dark:bg-red-900/20'
                   : 'border-gray-300 dark:border-gray-600'
@@ -161,7 +161,7 @@ const LoginForm = ({ onLogin, error }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="设置你的密码"
-              className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-linuxdo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${
+              className={`block w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-linux-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 ${
                 password && !validatePassword(password)
                   ? 'border-red-300 bg-red-50 dark:border-red-600 dark:bg-red-900/20'
                   : 'border-gray-300 dark:border-gray-600'
@@ -197,7 +197,7 @@ const LoginForm = ({ onLogin, error }) => {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 text-linuxdo-600 focus:ring-linuxdo-500 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
+              className="h-4 w-4 text-linux-600 focus:ring-linux-500 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700"
             />
             <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
               记住账号密码
@@ -205,12 +205,12 @@ const LoginForm = ({ onLogin, error }) => {
           </div>
 
           {/* 清除保存的账号信息 */}
-          {localStorage.getItem('linuxdo-credentials') && (
+          {localStorage.getItem('linux-credentials') && (
             <button
               type="button"
               onClick={() => {
                 if (confirm('确定要清除保存的账号信息吗？')) {
-                  localStorage.removeItem('linuxdo-credentials');
+                  localStorage.removeItem('linux-credentials');
                   setUsername('');
                   setPassword('');
                   setRememberMe(false);
@@ -239,7 +239,7 @@ const LoginForm = ({ onLogin, error }) => {
           disabled={!isValid || isLoading}
           className={`w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white transition-colors ${
             isValid && !isLoading
-              ? 'bg-linuxdo-600 hover:bg-linuxdo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-linuxdo-500'
+              ? 'bg-linux-600 hover:bg-linux-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-linux-500'
               : 'bg-gray-300 cursor-not-allowed'
           }`}
         >

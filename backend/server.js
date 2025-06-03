@@ -10,7 +10,7 @@ const ContainerManager = require('./services/containerManager');
 const ChatService = require('./services/chatService');
 const TerminalService = require('./services/terminalService');
 const UserService = require('./services/userService');
-// const LinuxDoStrategy = require('./auth/linuxdo-strategy');
+// const linuxStrategy = require('./auth/linux-strategy');
 // const oauthConfig = require('./config/oauth');
 // const authRoutes = require('./routes/auth');
 
@@ -48,7 +48,7 @@ app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // Session配置 (注释掉OAuth相关)
 // app.use(session({
-//   secret: process.env.SESSION_SECRET || 'linuxdo-webssh-secret-key',
+//   secret: process.env.SESSION_SECRET || 'linux-webssh-secret-key',
 //   resave: false,
 //   saveUninitialized: false,
 //   cookie: {
@@ -61,8 +61,8 @@ app.use(express.static(path.join(__dirname, '../frontend/dist')));
 // app.use(passport.initialize());
 // app.use(passport.session());
 
-// 配置LinuxDo OAuth策略 (注释掉OAuth相关)
-// passport.use(new LinuxDoStrategy(oauthConfig.linuxdo, (accessToken, refreshToken, profile, done) => {
+// 配置linux OAuth策略 (注释掉OAuth相关)
+// passport.use(new linuxStrategy(oauthConfig.linux, (accessToken, refreshToken, profile, done) => {
 //   // 这里可以保存用户信息到数据库
 //   return done(null, profile);
 // }));

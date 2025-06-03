@@ -7,7 +7,7 @@ const ProgressModal = ({ progress, message, username }) => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full">
         <div className="text-center">
           {/* 图标 */}
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-linuxdo-100 dark:bg-linuxdo-900/20 text-linuxdo-600 dark:text-linuxdo-400 rounded-full mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-linux-100 dark:bg-linux-900/20 text-linux-600 dark:text-linux-400 rounded-full mb-6">
             <Container size={32} />
           </div>
 
@@ -36,7 +36,7 @@ const ProgressModal = ({ progress, message, username }) => {
           </div>
 
           {/* 当前状态 */}
-          <div className="flex items-center justify-center space-x-2 text-linuxdo-600 dark:text-linuxdo-400">
+          <div className="flex items-center justify-center space-x-2 text-linux-600 dark:text-linux-400">
             <Loader size={16} className="animate-spin" />
             <span className="text-sm font-medium">{message}</span>
           </div>
@@ -57,14 +57,14 @@ const ProgressModal = ({ progress, message, username }) => {
                     progress >= item.threshold
                       ? 'bg-green-500'
                       : progress >= item.threshold - 20
-                        ? 'bg-linuxdo-500 animate-pulse'
+                        ? 'bg-linux-500 animate-pulse'
                         : 'bg-gray-300 dark:bg-gray-600'
                   }`}></div>
                   <span className={`text-sm ${
                     progress >= item.threshold
                       ? 'text-green-600 dark:text-green-400 font-medium'
                       : progress >= item.threshold - 20
-                        ? 'text-linuxdo-600 dark:text-linuxdo-400'
+                        ? 'text-linux-600 dark:text-linux-400'
                         : 'text-gray-500 dark:text-gray-400'
                   }`}>
                     {item.step}

@@ -52,7 +52,7 @@
   }
 
   .chat-header {
-    @apply bg-linuxdo-600 text-white px-4 py-3 font-semibold;
+    @apply bg-linux-600 text-white px-4 py-3 font-semibold;
   }
 
   .chat-messages {
@@ -163,7 +163,7 @@
   }
 
   .message-bubble.own {
-    @apply bg-linuxdo-500 text-white;
+    @apply bg-linux-500 text-white;
   }
 
   .message-bubble.other {
@@ -179,7 +179,7 @@
   }
 
   .progress-fill {
-    @apply bg-linuxdo-500 h-2 rounded-full transition-all duration-300 ease-out;
+    @apply bg-linux-500 h-2 rounded-full transition-all duration-300 ease-out;
   }
 
   .user-badge {

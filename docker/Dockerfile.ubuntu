@@ -30,7 +30,7 @@ RUN echo "dash dash/sh boolean false" | debconf-set-selections && \
     dpkg-reconfigure -f noninteractive dash
 
 # 创建欢迎脚本
-RUN echo '#!/bin/bash\necho "🎉 欢迎来到LinuxDo自习室！"\necho "📁 你现在在一个独立的Ubuntu 22.04容器中"\necho "🔧 可以自由安装软件包和进行实验"\necho "⏰ 容器将在2小时后自动销毁"\necho "📖 输入 \"cat welcome.txt\" 查看更多信息"' > /usr/local/bin/welcome && \
+RUN echo '#!/bin/bash\necho "🎉 欢迎来到linux自习室！"\necho "📁 你现在在一个独立的Ubuntu 22.04容器中"\necho "🔧 可以自由安装软件包和进行实验"\necho "⏰ 容器将在2小时后自动销毁"\necho "📖 输入 \"cat welcome.txt\" 查看更多信息"' > /usr/local/bin/welcome && \
     chmod +x /usr/local/bin/welcome
 
 WORKDIR /root

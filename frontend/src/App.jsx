@@ -27,7 +27,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('terminal');
 
   useEffect(() => {
-    // 检查URL参数，看是否是从LinuxDo登录回调回来的
+    // 检查URL参数，看是否是从linux登录回调回来的
     const urlParams = new URLSearchParams(window.location.search);
     const usernameFromUrl = urlParams.get('username');
     const loginSuccess = urlParams.get('login');
@@ -355,12 +355,12 @@ function App() {
 
   if (!isConnected && !isCreatingContainer) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-linuxdo-50 to-linuxdo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen bg-gradient-to-br from-linux-50 to-linux-100 dark:from-gray-900 dark:to-gray-800">
         <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-md mx-auto">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-linuxdo-500 text-white rounded-full mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-linux-500 text-white rounded-full mb-4">
                 <TerminalIcon size={32} />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -386,7 +386,7 @@ function App() {
 
   if (isCreatingContainer) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-linuxdo-50 to-linuxdo-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen bg-gradient-to-br from-linux-50 to-linux-100 dark:from-gray-900 dark:to-gray-800">
         <Header />
         <ProgressModal
           progress={progress.progress}
@@ -408,7 +408,7 @@ function App() {
             onClick={() => setActiveTab('terminal')}
             className={`flex-1 flex items-center justify-center py-3 px-4 text-sm font-medium ${
               activeTab === 'terminal'
-                ? 'text-linuxdo-600 border-b-2 border-linuxdo-600'
+                ? 'text-linux-600 border-b-2 border-linux-600'
                 : 'text-gray-500 dark:text-gray-400'
             }`}
           >
@@ -419,7 +419,7 @@ function App() {
             onClick={() => setActiveTab('chat')}
             className={`flex-1 flex items-center justify-center py-3 px-4 text-sm font-medium ${
               activeTab === 'chat'
-                ? 'text-linuxdo-600 border-b-2 border-linuxdo-600'
+                ? 'text-linux-600 border-b-2 border-linux-600'
                 : 'text-gray-500 dark:text-gray-400'
             }`}
           >

@@ -199,7 +199,7 @@ io.on('connection', (socket) => {
 
     try {
       // 直接连接到容器
-      const containerName = `linuxdo-${username}`;
+      const containerName = `linux-${username}`;
 
       const terminal = pty.spawn('docker', [
         'exec', '-it', containerName, '/bin/bash'

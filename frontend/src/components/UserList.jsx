@@ -188,7 +188,7 @@ const UserList = ({ users, currentUsername, socket }) => {
                           {user.username}
                         </span>
                         {isCurrentUser && (
-                          <span className="text-xs bg-linuxdo-100 dark:bg-linuxdo-900 text-linuxdo-800 dark:text-linuxdo-200 px-2 py-1 rounded-full">
+                          <span className="text-xs bg-linux-100 dark:bg-linux-900 text-linux-800 dark:text-linux-200 px-2 py-1 rounded-full">
                             你
                           </span>
                         )}

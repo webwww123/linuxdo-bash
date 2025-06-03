@@ -58,7 +58,7 @@ const Header = ({ username, onLogout, onlineCount = 0 }) => {
         <div className="flex items-center h-16">
           {/* 左侧：Logo和标题 */}
           <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center w-10 h-10 bg-linuxdo-500 text-white rounded-lg">
+            <div className="flex items-center justify-center w-10 h-10 bg-linux-500 text-white rounded-lg">
               <Terminal size={24} />
             </div>
             <div>
@@ -135,7 +135,7 @@ const Header = ({ username, onLogout, onlineCount = 0 }) => {
                   </div>
                   <div className="flex items-center space-x-1 text-xs text-gray-500 dark:text-gray-400">
                     <span>在线:</span>
-                    <span className="font-medium text-linuxdo-600 dark:text-linuxdo-400">
+                    <span className="font-medium text-linux-600 dark:text-linux-400">
                       {onlineCount}
                     </span>
                   </div>
@@ -169,7 +169,7 @@ const Header = ({ username, onLogout, onlineCount = 0 }) => {
 
       {/* 状态栏 */}
       {username && (
-        <div className="bg-linuxdo-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+        <div className="bg-linux-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <div className="container mx-auto px-4 py-2">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center space-x-4">

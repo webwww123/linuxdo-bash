@@ -235,7 +235,7 @@ const Terminal = ({ socket, username }) => {
             <div className="terminal-control maximize"></div>
           </div>
           <span className="text-gray-300 text-sm font-medium ml-4">
-            {username}@linuxdo-container
+            {username}@linux-container
           </span>
         </div>
 

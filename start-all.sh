@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LinuxDo自习室 - 一键启动脚本
+# linux自习室 - 一键启动脚本
 # 启动所有必要的服务：前端、后端API、WebSSH服务器
 
 set -e  # 遇到错误立即退出
@@ -22,7 +22,7 @@ print_message() {
 print_header() {
     echo
     echo -e "${CYAN}================================${NC}"
-    echo -e "${CYAN}  LinuxDo自习室 - 一键启动${NC}"
+    echo -e "${CYAN}  linux自习室 - 一键启动${NC}"
     echo -e "${CYAN}================================${NC}"
     echo
 }
@@ -227,7 +227,7 @@ check_services() {
 # 显示访问信息
 show_access_info() {
     echo
-    print_message "🎉 LinuxDo自习室启动成功！" $GREEN
+    print_message "🎉 linux自习室启动成功！" $GREEN
     echo
     print_message "📱 访问地址:" $CYAN
     print_message "   前端应用: http://localhost:5173" $BLUE

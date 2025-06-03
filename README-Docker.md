@@ -1,6 +1,6 @@
-# LinuxDo自习室 Docker部署指南 🐳
+# linux自习室 Docker部署指南 🐳
 
-> 一键部署LinuxDo自习室 - 基于Docker的WebSSH系统
+> 一键部署linux自习室 - 基于Docker的WebSSH系统
 
 ## 🚀 快速开始
 
@@ -9,14 +9,14 @@
 ```bash
 # 拉取并运行镜像
 docker run -d \
-  --name linuxdo-webssh \
+  --name linux-webssh \
   --restart unless-stopped \
   -p 3001:3001 \
   -p 3002:3002 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v linuxdo-data:/app/backend/data \
-  -v linuxdo-logs:/app/logs \
-  your-dockerhub-username/linuxdo-webssh:latest
+  -v linux-data:/app/backend/data \
+  -v linux-logs:/app/logs \
+  your-dockerhub-username/linux-webssh:latest
 ```
 
 ### 方式二：使用docker-compose
@@ -24,7 +24,7 @@ docker run -d \
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd linuxdo-webssh
+cd linux-webssh
 
 # 启动服务
 docker-compose up -d
@@ -35,20 +35,20 @@ docker-compose up -d
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd linuxdo-webssh
+cd linux-webssh
 
 # 构建镜像
-docker build -t linuxdo-webssh .
+docker build -t linux-webssh .
 
 # 运行容器
 docker run -d \
-  --name linuxdo-webssh \
+  --name linux-webssh \
   --restart unless-stopped \
   -p 3001:3001 \
   -p 3002:3002 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v linuxdo-data:/app/backend/data \
-  linuxdo-webssh
+  -v linux-data:/app/backend/data \
+  linux-webssh
 ```
 
 ## 📱 访问应用
@@ -76,54 +76,54 @@ docker run -d \
 
 容器使用以下卷进行数据持久化：
 
-- `linuxdo-data`: 存储SQLite数据库和用户数据
-- `linuxdo-logs`: 存储应用日志
+- `linux-data`: 存储SQLite数据库和用户数据
+- `linux-logs`: 存储应用日志
 
 ## 🛠️ 管理命令
 
 ### 查看日志
 ```bash
 # 查看容器日志
-docker logs linuxdo-webssh
+docker logs linux-webssh
 
 # 查看详细服务日志
-docker exec -it linuxdo-webssh tail -f /var/log/supervisor/*.log
+docker exec -it linux-webssh tail -f /var/log/supervisor/*.log
 ```
 
 ### 进入容器
 ```bash
-docker exec -it linuxdo-webssh bash
+docker exec -it linux-webssh bash
 ```
 
 ### 重启服务
 ```bash
-docker restart linuxdo-webssh
+docker restart linux-webssh
 ```
 
 ### 停止服务
 ```bash
-docker stop linuxdo-webssh
+docker stop linux-webssh
 ```
 
 ### 更新镜像
 ```bash
 # 停止并删除旧容器
-docker stop linuxdo-webssh
-docker rm linuxdo-webssh
+docker stop linux-webssh
+docker rm linux-webssh
 
 # 拉取最新镜像
-docker pull your-dockerhub-username/linuxdo-webssh:latest
+docker pull your-dockerhub-username/linux-webssh:latest
 
 # 重新运行
 docker run -d \
-  --name linuxdo-webssh \
+  --name linux-webssh \
   --restart unless-stopped \
   -p 3001:3001 \
   -p 3002:3002 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v linuxdo-data:/app/backend/data \
-  -v linuxdo-logs:/app/logs \
-  your-dockerhub-username/linuxdo-webssh:latest
+  -v linux-data:/app/backend/data \
+  -v linux-logs:/app/logs \
+  your-dockerhub-username/linux-webssh:latest
 ```
 
 ## 🔒 安全注意事项
@@ -151,17 +151,17 @@ netstat -tlnp | grep :3002
 ls -la /var/run/docker.sock
 
 # 检查容器日志
-docker logs linuxdo-webssh
+docker logs linux-webssh
 ```
 
 ### 服务无响应
 ```bash
 # 检查服务状态
-docker exec -it linuxdo-webssh supervisorctl status
+docker exec -it linux-webssh supervisorctl status
 
 # 重启特定服务
-docker exec -it linuxdo-webssh supervisorctl restart backend-api
-docker exec -it linuxdo-webssh supervisorctl restart webssh-server
+docker exec -it linux-webssh supervisorctl restart backend-api
+docker exec -it linux-webssh supervisorctl restart webssh-server
 ```
 
 ## 📊 性能优化
@@ -169,22 +169,22 @@ docker exec -it linuxdo-webssh supervisorctl restart webssh-server
 ### 资源限制建议
 ```bash
 docker run -d \
-  --name linuxdo-webssh \
+  --name linux-webssh \
   --restart unless-stopped \
   --memory=2g \
   --cpus=2 \
   -p 3001:3001 \
   -p 3002:3002 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v linuxdo-data:/app/backend/data \
-  your-dockerhub-username/linuxdo-webssh:latest
+  -v linux-data:/app/backend/data \
+  your-dockerhub-username/linux-webssh:latest
 ```
 
 ### 日志轮转
 ```bash
 # 设置日志大小限制
 docker run -d \
-  --name linuxdo-webssh \
+  --name linux-webssh \
   --restart unless-stopped \
   --log-driver json-file \
   --log-opt max-size=100m \
@@ -192,8 +192,8 @@ docker run -d \
   -p 3001:3001 \
   -p 3002:3002 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v linuxdo-data:/app/backend/data \
-  your-dockerhub-username/linuxdo-webssh:latest
+  -v linux-data:/app/backend/data \
+  your-dockerhub-username/linux-webssh:latest
 ```
 
 ## 🤝 贡献

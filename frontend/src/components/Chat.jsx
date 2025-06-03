@@ -278,7 +278,7 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="输入消息..."
-              className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-linuxdo-500 focus:border-transparent text-sm resize-none"
+              className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-linux-500 focus:border-transparent text-sm resize-none"
               maxLength={500}
               rows={1}
               style={{
@@ -302,7 +302,7 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
             disabled={!inputMessage.trim()}
             className={`px-3 py-2 rounded-lg text-white transition-colors ${
               inputMessage.trim()
-                ? 'bg-linuxdo-500 hover:bg-linuxdo-600'
+                ? 'bg-linux-500 hover:bg-linux-600'
                 : 'bg-gray-300 cursor-not-allowed'
             }`}
           >

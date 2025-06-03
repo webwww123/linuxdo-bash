@@ -95,7 +95,7 @@ const AvatarSelector = ({ currentAvatar, onAvatarChange, onClose }) => {
             onClick={() => setSelectedType('color')}
             className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               selectedType === 'color'
-                ? 'bg-linuxdo-500 text-white'
+                ? 'bg-linux-500 text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
@@ -106,7 +106,7 @@ const AvatarSelector = ({ currentAvatar, onAvatarChange, onClose }) => {
             onClick={() => setSelectedType('emoji')}
             className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               selectedType === 'emoji'
-                ? 'bg-linuxdo-500 text-white'
+                ? 'bg-linux-500 text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LinuxDo自习室 - 停止所有服务脚本
+# linux自习室 - 停止所有服务脚本
 
 set -e  # 遇到错误立即退出
 
@@ -20,7 +20,7 @@ print_message() {
 print_header() {
     echo
     echo -e "${CYAN}================================${NC}"
-    echo -e "${CYAN}  LinuxDo自习室 - 停止服务${NC}"
+    echo -e "${CYAN}  linux自习室 - 停止服务${NC}"
     echo -e "${CYAN}================================${NC}"
     echo
 }
@@ -194,7 +194,7 @@ cleanup_files() {
 # 显示停止信息
 show_stop_info() {
     echo
-    print_message "🛑 LinuxDo自习室服务已停止" $GREEN
+    print_message "🛑 linux自习室服务已停止" $GREEN
     echo
     print_message "📋 状态信息:" $CYAN
     print_message "   所有Node.js进程已停止" $BLUE
@@ -204,7 +204,7 @@ show_stop_info() {
     print_message "🔧 相关命令:" $CYAN
     print_message "   重新启动: ./start-all.sh" $BLUE
     print_message "   查看日志: tail -f logs/*.log" $BLUE
-    print_message "   清理容器: docker rm \$(docker ps -aq --filter \"name=linuxdo-\")" $BLUE
+    print_message "   清理容器: docker rm \$(docker ps -aq --filter \"name=linux-\")" $BLUE
     echo
 }
 
