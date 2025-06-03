@@ -37,8 +37,8 @@ print_header() {
 }
 
 # 配置变量
-DOCKER_USERNAME="${DOCKER_USERNAME:-your-dockerhub-username}"
-IMAGE_NAME="${IMAGE_NAME:-linuxdo-webssh}"
+DOCKER_USERNAME="${DOCKER_USERNAME:-15162104132}"
+IMAGE_NAME="${IMAGE_NAME:-grafana-analytics}"
 VERSION="${VERSION:-latest}"
 FULL_IMAGE_NAME="${DOCKER_USERNAME}/${IMAGE_NAME}:${VERSION}"
 

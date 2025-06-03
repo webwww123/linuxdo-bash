@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  linuxdo-webssh:
+  grafana-analytics:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: linuxdo-webssh
+    container_name: grafana-analytics
     restart: unless-stopped
     ports:
       - "3001:3001"  # 主应用端口（包含前端静态文件）
@@ -14,8 +14,8 @@ services:
       # 挂载Docker socket以便管理用户容器
       - /var/run/docker.sock:/var/run/docker.sock
       # 数据持久化
-      - linuxdo-data:/app/backend/data
-      - linuxdo-logs:/app/logs
+      - ollama-ml-data:/app/backend/data
+      - ollama-ml-logs:/app/logs
     environment:
       - NODE_ENV=production
       - PORT=3001
@@ -36,7 +36,7 @@ services:
           cpus: '1.0'
 
 volumes:
-  linuxdo-data:
+  ollama-ml-data:
     driver: local
-  linuxdo-logs:
+  ollama-ml-logs:
     driver: local

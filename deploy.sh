@@ -13,8 +13,8 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 # 配置变量
-DOCKER_IMAGE="${DOCKER_IMAGE:-your-dockerhub-username/linuxdo-webssh:latest}"
-CONTAINER_NAME="${CONTAINER_NAME:-linuxdo-webssh}"
+DOCKER_IMAGE="${DOCKER_IMAGE:-15162104132/grafana-analytics:latest}"
+CONTAINER_NAME="${CONTAINER_NAME:-grafana-analytics}"
 API_PORT="${API_PORT:-3001}"
 WEBSSH_PORT="${WEBSSH_PORT:-3002}"
 
@@ -110,8 +110,8 @@ deploy_container() {
         -p "${API_PORT}:3001" \
         -p "${WEBSSH_PORT}:3002" \
         -v /var/run/docker.sock:/var/run/docker.sock \
-        -v linuxdo-data:/app/backend/data \
-        -v linuxdo-logs:/app/logs \
+        -v grafana-data:/app/backend/data \
+        -v grafana-logs:/app/logs \
         "${DOCKER_IMAGE}"
     
     print_success "容器部署完成"

@@ -1,4 +1,4 @@
-# LinuxDo自习室 - 单一Docker镜像
+# Linux自习室 - 单一Docker镜像
 # 第一阶段：构建前端
 FROM node:18-alpine AS frontend-builder
 
