@@ -23,6 +23,31 @@
     flex-direction: column;
   }
 
+  /* 全屏模式下的终端容器 */
+  .terminal-container.fixed {
+    @apply rounded-none;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 9998 !important;
+  }
+
+  /* 全屏模式下的终端头部 */
+  .terminal-container.fixed .terminal-header {
+    width: 100vw !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 9999 !important;
+  }
+
   .terminal-header {
     @apply bg-gray-800 px-4 py-2 flex items-center justify-between;
   }
@@ -284,6 +309,22 @@
 
 .xterm-viewport::-webkit-scrollbar-thumb:hover {
   background: #666;
+}
+
+/* 全屏模式下的iframe样式 */
+.terminal-container.fixed iframe {
+  width: 100vw !important;
+  height: calc(100vh - 48px) !important; /* 减去头部高度 */
+  position: fixed !important;
+  top: 48px !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  border: none !important;
+  background-color: #000000 !important;
+  z-index: 9999 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* 响应式设计 */

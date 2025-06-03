@@ -45,17 +45,26 @@ app.get('/ssh', (req, res) => {
         <title>WebSSH Terminal</title>
         <script src="/socket.io/socket.io.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.min.js"></script>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css" />
         <style>
-            body {
+            html, body {
                 margin: 0;
                 padding: 0;
                 background: #000;
                 font-family: monospace;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                box-sizing: border-box;
             }
             #terminal {
-                width: 100vw;
-                height: 100vh;
+                width: 100%;
+                height: 100%;
+                min-width: 100%;
+                min-height: 100%;
+                box-sizing: border-box;
+                overflow: hidden;
             }
         </style>
     </head>
@@ -75,6 +84,10 @@ app.get('/ssh', (req, res) => {
                 scrollback: 1000,
                 tabStopWidth: 4
             });
+
+            // 添加FitAddon
+            const fitAddon = new FitAddon.FitAddon();
+            terminal.loadAddon(fitAddon);
 
             terminal.open(document.getElementById('terminal'));
 
@@ -182,8 +195,45 @@ app.get('/ssh', (req, res) => {
 
             // 初始化大小
             setTimeout(() => {
-                terminal.fit();
+                fitAddon.fit();
             }, 100);
+
+            // 监听窗口大小变化
+            window.addEventListener('resize', () => {
+                setTimeout(() => {
+                    fitAddon.fit();
+                }, 50);
+            });
+
+            // 监听来自父窗口的resize消息
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'resize') {
+                    setTimeout(() => {
+                        fitAddon.fit();
+                    }, 50);
+                }
+            });
+
+            // 定期检查并调整大小（确保终端始终适配容器）
+            setInterval(() => {
+                const terminalElement = document.getElementById('terminal');
+                if (terminalElement) {
+                    const rect = terminalElement.getBoundingClientRect();
+                    const currentCols = terminal.cols;
+                    const currentRows = terminal.rows;
+
+                    // 计算应该的列数和行数
+                    const charWidth = 9; // 大约的字符宽度
+                    const charHeight = 17; // 大约的字符高度
+                    const expectedCols = Math.floor(rect.width / charWidth);
+                    const expectedRows = Math.floor(rect.height / charHeight);
+
+                    // 如果大小差异较大，重新fit
+                    if (Math.abs(expectedCols - currentCols) > 2 || Math.abs(expectedRows - currentRows) > 2) {
+                        fitAddon.fit();
+                    }
+                }
+            }, 1000);
         </script>
     </body>
     </html>

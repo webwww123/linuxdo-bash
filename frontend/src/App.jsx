@@ -25,6 +25,7 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('terminal');
+  const [isTerminalFullscreen, setIsTerminalFullscreen] = useState(false);
 
   useEffect(() => {
     // 检查URL参数，看是否是从linux登录回调回来的
@@ -323,6 +324,10 @@ function App() {
     socket.emit('chat-message', { message });
   };
 
+  const handleTerminalFullscreenChange = (isFullscreen) => {
+    setIsTerminalFullscreen(isFullscreen);
+  };
+
   const handleLogout = () => {
     if (socket) {
       socket.disconnect();
@@ -433,24 +438,30 @@ function App() {
       <div className="container mx-auto px-4 py-6 relative">
         {/* 上半部分：终端区域 - 使用黄金比例 */}
         <div className="mb-8">
-          {/* 终端区域 - 占据约62%宽度（黄金比例） */}
-          <div className={`lg:w-[62%] ${activeTab !== 'terminal' ? 'hidden lg:block' : ''}`}>
-            <Terminal socket={socket} username={username} />
-          </div>
-        </div>
-
-        {/* 侧边栏 - 绝对定位，脱离文档流，使用黄金比例的剩余空间 */}
-        <div className="lg:absolute lg:top-6 lg:right-4 lg:w-[36%] space-y-6 z-50">
-          {/* 聊天室 */}
-          <div className={`${activeTab !== 'chat' ? 'hidden lg:block' : ''}`}>
-            <Chat
+          {/* 终端区域 - 占据约62%宽度（黄金比例），全屏时占满整个屏幕 */}
+          <div className={`${isTerminalFullscreen ? 'w-full' : 'lg:w-[62%]'} ${activeTab !== 'terminal' ? 'hidden lg:block' : ''}`}>
+            <Terminal
               socket={socket}
-              messages={chatMessages}
-              currentUsername={username}
-              onSendMessage={handleSendMessage}
+              username={username}
+              onFullscreenChange={handleTerminalFullscreenChange}
             />
           </div>
         </div>
+
+        {/* 侧边栏 - 绝对定位，脱离文档流，使用黄金比例的剩余空间，全屏时隐藏 */}
+        {!isTerminalFullscreen && (
+          <div className="lg:absolute lg:top-6 lg:right-4 lg:w-[36%] space-y-6 z-50">
+            {/* 聊天室 */}
+            <div className={`${activeTab !== 'chat' ? 'hidden lg:block' : ''}`}>
+              <Chat
+                socket={socket}
+                messages={chatMessages}
+                currentUsername={username}
+                onSendMessage={handleSendMessage}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 下半部分：其他用户终端展示区域 - 使用更宽的布局 */}

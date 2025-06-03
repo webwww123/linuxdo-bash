@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Maximize2, Minimize2, RotateCcw, Copy, Clipboard } from 'lucide-react';
 
-const Terminal = ({ socket, username }) => {
+const Terminal = ({ socket, username, onFullscreenChange }) => {
   const terminalRef = useRef(null);
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
@@ -162,10 +162,57 @@ const Terminal = ({ socket, username }) => {
     };
   }, [socket]);
 
+  // 监听窗口大小变化，通知iframe调整大小
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const iframe = document.querySelector('.terminal-container iframe');
+      if (iframe && iframe.contentWindow) {
+        try {
+          // 延迟触发，确保布局稳定
+          setTimeout(() => {
+            const resizeEvent = new Event('resize');
+            iframe.contentWindow.dispatchEvent(resizeEvent);
+          }, 100);
+        } catch (error) {
+          console.warn('Failed to notify iframe of window resize:', error);
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    return () => window.removeEventListener('resize', handleWindowResize);
+  }, []);
+
   const handleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-    // 延迟调整大小，确保CSS动画完成
+    const newFullscreenState = !isFullscreen;
+    setIsFullscreen(newFullscreenState);
+
+    // 通知父组件全屏状态变化
+    if (onFullscreenChange) {
+      onFullscreenChange(newFullscreenState);
+    }
+
+    // 延迟调整大小，确保CSS动画完成，并通知iframe内的终端调整大小
     setTimeout(() => {
+      // 通知iframe内的WebSSH终端调整大小
+      const iframe = document.querySelector('.terminal-container iframe');
+      if (iframe && iframe.contentWindow) {
+        try {
+          // 发送resize事件给iframe
+          iframe.contentWindow.postMessage({
+            type: 'resize',
+            fullscreen: newFullscreenState
+          }, '*');
+
+          // 触发iframe的resize事件
+          const resizeEvent = new Event('resize');
+          iframe.contentWindow.dispatchEvent(resizeEvent);
+        } catch (error) {
+          console.warn('Failed to notify iframe resize:', error);
+        }
+      }
+
+      // 原有的xterm调整逻辑（如果有的话）
       if (fitAddonRef.current && xtermRef.current) {
         try {
           fitAddonRef.current.fit();
@@ -177,7 +224,7 @@ const Terminal = ({ socket, username }) => {
           console.warn('Fullscreen resize failed:', error);
         }
       }
-    }, 200);
+    }, 300); // 增加延迟时间确保CSS完全应用
   };
 
   const handleClear = () => {
@@ -306,11 +353,11 @@ const Terminal = ({ socket, username }) => {
       <div
         className={`overflow-hidden ${
           isFullscreen
-            ? 'h-[calc(100vh-96px)]'
+            ? 'h-[calc(100vh-48px)]'
             : 'h-96 lg:h-[500px]'
         }`}
         style={{
-          minHeight: '300px',
+          minHeight: isFullscreen ? '100vh' : '300px',
           width: '100%',
           position: 'relative',
           backgroundColor: '#000000',
@@ -319,13 +366,41 @@ const Terminal = ({ socket, username }) => {
       >
         {/* 使用iframe嵌入webssh - 这个方案已经验证可以工作 */}
         <iframe
-          src={(() => {
-            if (window.location.hostname.includes('github.dev')) {
-              // GitHub Codespaces环境
-              const websshUrl = window.location.origin.replace('-5173', '-3002');
-              return `${websshUrl}/ssh?username=${username}`;
+          ref={(iframe) => {
+            if (iframe) {
+              // 当iframe加载完成后，设置resize监听
+              iframe.onload = () => {
+                // 延迟触发resize确保终端正确初始化
+                setTimeout(() => {
+                  try {
+                    if (iframe.contentWindow) {
+                      const resizeEvent = new Event('resize');
+                      iframe.contentWindow.dispatchEvent(resizeEvent);
+                    }
+                  } catch (error) {
+                    console.warn('Failed to trigger initial iframe resize:', error);
+                  }
+                }, 500);
+              };
             }
-            return `http://localhost:3002/ssh?username=${username}`;
+          }}
+          src={(() => {
+            // 智能地址检测
+            const getWebSSHUrl = () => {
+              if (window.location.hostname.includes('github.dev')) {
+                // GitHub Codespaces环境
+                return window.location.origin.replace('-5173', '-3002');
+              }
+
+              // 自动检测当前环境
+              const protocol = window.location.protocol;
+              const hostname = window.location.hostname;
+
+              // 使用当前主机的3002端口
+              return `${protocol}//${hostname}:3002`;
+            };
+
+            return `${getWebSSHUrl()}/ssh?username=${username}`;
           })()}
           style={{
             width: '100%',
