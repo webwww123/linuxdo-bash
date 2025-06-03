@@ -1,0 +1,84 @@
+# Git相关
+.git
+.gitignore
+.gitattributes
+
+# Node.js相关
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 开发工具
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# 日志文件
+logs
+*.log
+
+# 运行时文件
+*.pid
+*.seed
+*.pid.lock
+
+# 覆盖率报告
+coverage
+.nyc_output
+
+# 依赖目录
+.npm
+.yarn-integrity
+
+# 可选的npm缓存目录
+.npm
+
+# 可选的eslint缓存
+.eslintcache
+
+# 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 构建输出（前端构建文件会在Docker中重新生成）
+frontend/dist
+frontend/build
+
+# 数据库文件
+backend/data/*.db
+backend/data/*.sqlite
+backend/data/*.sqlite3
+
+# 临时文件
+tmp
+temp
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# Docker相关
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# 文档
+README*.md
+docs/
+
+# 脚本文件（排除Docker启动脚本）
+*.sh
+!docker-entrypoint.sh
+
+# 测试文件
+test/
+tests/
+__tests__/
+*.test.js
+*.spec.js
