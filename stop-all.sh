@@ -80,6 +80,18 @@ stop_pid_services() {
         fi
         rm -f logs/frontend.pid
     fi
+
+    # 停止Grafana服务
+    if [ -f "logs/grafana.pid" ]; then
+        GRAFANA_PID=$(cat logs/grafana.pid)
+        if kill -0 $GRAFANA_PID 2>/dev/null; then
+            kill $GRAFANA_PID
+            print_success "Grafana监控服务器已停止 (PID: $GRAFANA_PID)"
+        else
+            print_warning "Grafana监控服务器进程不存在 (PID: $GRAFANA_PID)"
+        fi
+        rm -f logs/grafana.pid
+    fi
 }
 
 # 强制停止所有相关进程
@@ -129,20 +141,20 @@ force_stop_processes() {
 stop_docker_containers() {
     print_step "停止Docker容器..."
     
-    # 获取LinuxDo相关容器
-    CONTAINERS=$(docker ps -q --filter "name=linuxdo-" 2>/dev/null || true)
-    
+    # 获取Linux相关容器
+    CONTAINERS=$(docker ps -q --filter "name=linux-" 2>/dev/null || true)
+
     if [ -n "$CONTAINERS" ]; then
-        print_message "停止LinuxDo容器..." $YELLOW
+        print_message "停止Linux容器..." $YELLOW
         docker stop $CONTAINERS
         print_success "Docker容器已停止"
-        
+
         # 可选：删除容器（注释掉以保持容器持久化）
-        # print_message "删除LinuxDo容器..." $YELLOW
+        # print_message "删除Linux容器..." $YELLOW
         # docker rm $CONTAINERS
         # print_success "Docker容器已删除"
     else
-        print_warning "没有找到运行中的LinuxDo容器"
+        print_warning "没有找到运行中的Linux容器"
     fi
 }
 
@@ -150,7 +162,7 @@ stop_docker_containers() {
 check_ports() {
     print_step "检查端口占用情况..."
     
-    PORTS=(3001 3002 5173)
+    PORTS=(3001 3002 5173 8080)
     
     for PORT in "${PORTS[@]}"; do
         if lsof -i :$PORT >/dev/null 2>&1; then
@@ -240,7 +252,7 @@ main() {
     
     if [ "$CLEAN_CONTAINERS" = true ]; then
         print_step "删除Docker容器..."
-        docker rm $(docker ps -aq --filter "name=linuxdo-") 2>/dev/null || true
+        docker rm $(docker ps -aq --filter "name=linux-") 2>/dev/null || true
         print_success "Docker容器已删除"
     fi
     

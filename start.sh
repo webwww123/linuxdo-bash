@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 启动LinuxDo自习室..."
+echo "🚀 启动Linux容器管理系统..."
 
 # 检查Docker是否运行
 if ! docker info > /dev/null 2>&1; then
@@ -10,7 +10,7 @@ fi
 
 # 构建基础镜像
 echo "🐳 构建Ubuntu基础镜像..."
-docker build -t linuxdo-ubuntu:latest -f docker/Dockerfile.ubuntu .
+docker build -t linux-ubuntu:latest -f docker/Dockerfile.ubuntu .
 
 if [ $? -ne 0 ]; then
     echo "❌ 镜像构建失败"

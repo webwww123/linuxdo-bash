@@ -30,7 +30,7 @@ class ContainerManager {
    * 获取或创建用户容器 - 支持一人一号逻辑和密码验证
    */
   async getOrCreateContainer(username, password) {
-    const containerName = `linuxdo-${username}`;
+    const containerName = `linux-${username}`;
 
     try {
       // 1. 检查用户是否已存在于数据库
@@ -133,7 +133,7 @@ class ContainerManager {
       return {
         containerId,
         isNew: true,
-        message: '欢迎来到LinuxDo自习室！'
+        message: '欢迎来到Linux Analytics！'
       };
     } catch (error) {
       console.error('获取或创建容器失败:', error);
@@ -145,7 +145,7 @@ class ContainerManager {
    * 创建Docker容器
    */
   async createContainer(username) {
-    const containerName = `linuxdo-${username}`;
+    const containerName = `linux-${username}`;
 
     try {
       // 确保镜像存在
@@ -169,7 +169,7 @@ class ContainerManager {
 
       // 创建容器
       const container = await this.docker.createContainer({
-        Image: 'linuxdo-ubuntu:latest',
+        Image: 'linux-ubuntu:latest',
         name: containerName,
         Tty: true,
         OpenStdin: true,
@@ -209,10 +209,10 @@ class ContainerManager {
    */
   async ensureImage() {
     try {
-      await this.docker.getImage('linuxdo-ubuntu:latest').inspect();
+      await this.docker.getImage('linux-ubuntu:latest').inspect();
     } catch (error) {
       // 镜像不存在，构建它
-      console.log('构建LinuxDo Ubuntu镜像...');
+      console.log('构建Linux Ubuntu镜像...');
       await this.buildImage();
     }
   }
@@ -257,19 +257,19 @@ WORKDIR /root
 CMD ["/bin/bash"]
 `;
 
-    const stream = await this.docker.buildImage({
-      context: __dirname,
-      src: ['Dockerfile']
-    }, {
-      t: 'linuxdo-ubuntu:latest',
-      dockerfile: 'Dockerfile'
-    });
-
     // 写入Dockerfile
     const fs = require('fs');
     const path = require('path');
     const dockerfilePath = path.join(__dirname, 'Dockerfile');
     fs.writeFileSync(dockerfilePath, dockerfile);
+
+    const stream = await this.docker.buildImage({
+      context: __dirname,
+      src: ['Dockerfile']
+    }, {
+      t: 'linux-ubuntu:latest',
+      dockerfile: 'Dockerfile'
+    });
 
     return new Promise((resolve, reject) => {
       this.docker.modem.followProgress(stream, (err, res) => {
@@ -308,7 +308,7 @@ CMD ["/bin/bash"]
       // 创建欢迎文件
       `cat > /home/${username}/welcome.txt << 'EOF'
 =================================
-   欢迎来到LinuxDo自习室！
+   欢迎来到Linux Analytics！
 =================================
 
 系统信息:

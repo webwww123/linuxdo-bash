@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# LinuxDo自习室 Docker启动脚本
+# Linux Analytics Docker启动脚本
 
 # 颜色定义
 RED='\033[0;31m'
@@ -16,21 +16,21 @@ print_message() {
 }
 
 print_step() {
-    echo -e "${BLUE}[LinuxDo] ${1}${NC}"
+    echo -e "${BLUE}[Analytics] ${1}${NC}"
 }
 
 print_success() {
-    echo -e "${GREEN}[LinuxDo] ${1}${NC}"
+    echo -e "${GREEN}[Analytics] ${1}${NC}"
 }
 
 print_error() {
-    echo -e "${RED}[LinuxDo] ${1}${NC}"
+    echo -e "${RED}[Analytics] ${1}${NC}"
 }
 
 print_header() {
     echo
     echo -e "${CYAN}================================${NC}"
-    echo -e "${CYAN}    LinuxDo自习室 Docker版${NC}"
+    echo -e "${CYAN}    Linux Analytics Docker版${NC}"
     echo -e "${CYAN}================================${NC}"
     echo
 }
@@ -95,7 +95,7 @@ wait_and_check_services() {
 # 显示成功信息
 show_success_info() {
     echo
-    print_message "🎉 LinuxDo自习室已成功启动！" $GREEN
+    print_message "🎉 Linux Analytics已成功启动！" $GREEN
     echo
     print_message "📱 访问地址:" $CYAN
     print_message "   主应用:    http://localhost:3001" $BLUE

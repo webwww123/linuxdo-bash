@@ -1,6 +1,6 @@
-# LinuxDo自习室 - Docker一键部署 🐳
+# Linux Analytics - Docker一键部署 🐳
 
-> 一个命令启动完整的WebSSH系统！
+> 一个命令启动完整的机器学习容器管理系统！
 
 ## 🚀 快速部署
 
@@ -8,14 +8,16 @@
 
 ```bash
 docker run -d \
-  --name linuxdo-webssh \
+  --name grafana-analytics \
   --restart unless-stopped \
   -p 3001:3001 \
   -p 3002:3002 \
+  -p 5173:5173 \
+  -p 8080:8080 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -v linuxdo-data:/app/backend/data \
-  -v linuxdo-logs:/app/logs \
-  your-dockerhub-username/linuxdo-webssh:latest
+  -v analytics-data:/app/backend/data \
+  -v analytics-logs:/app/logs \
+  15162104132/grafana-analytics:latest
 ```
 
 ### 方式二：使用docker-compose
@@ -23,23 +25,25 @@ docker run -d \
 ```yaml
 version: '3.8'
 services:
-  linuxdo-webssh:
-    image: your-dockerhub-username/linuxdo-webssh:latest
-    container_name: linuxdo-webssh
+  grafana-analytics:
+    image: 15162104132/grafana-analytics:latest
+    container_name: grafana-analytics
     restart: unless-stopped
     ports:
       - "3001:3001"
       - "3002:3002"
+      - "5173:5173"
+      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - linuxdo-data:/app/backend/data
-      - linuxdo-logs:/app/logs
+      - analytics-data:/app/backend/data
+      - analytics-logs:/app/logs
     environment:
       - NODE_ENV=production
 
 volumes:
-  linuxdo-data:
-  linuxdo-logs:
+  analytics-data:
+  analytics-logs:
 ```
 
 ## 📱 访问应用

@@ -51,7 +51,19 @@ function App() {
         // GitHub Codespaces环境
         return window.location.origin.replace('-5173', '-3001');
       }
-      return 'http://localhost:3001';
+
+      // 自动检测当前环境
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const currentPort = window.location.port;
+
+      // 如果当前访问的是3001端口（生产环境），直接使用当前地址
+      if (currentPort === '3001') {
+        return `${protocol}//${hostname}:3001`;
+      }
+
+      // 如果是开发环境（5173端口）或其他端口，连接到3001
+      return `${protocol}//${hostname}:3001`;
     };
 
     const newSocket = io(getBackendUrl(), {
@@ -168,12 +180,24 @@ function App() {
   };
 
   const handleAutoLogin = (inputUsername) => {
-    // 为LinuxDo登录创建新的socket连接
+    // 为Linux登录创建新的socket连接
     const getBackendUrl = () => {
       if (window.location.hostname.includes('github.dev')) {
         return window.location.origin.replace('-5173', '-3001');
       }
-      return 'http://localhost:3001';
+
+      // 自动检测当前环境
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      const currentPort = window.location.port;
+
+      // 如果当前访问的是3001端口（生产环境），直接使用当前地址
+      if (currentPort === '3001') {
+        return `${protocol}//${hostname}:3001`;
+      }
+
+      // 如果是开发环境（5173端口）或其他端口，连接到3001
+      return `${protocol}//${hostname}:3001`;
     };
 
     const newSocket = io(getBackendUrl(), {
@@ -340,10 +364,10 @@ function App() {
                 <TerminalIcon size={32} />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                欢迎来到LinuxDo自习室
+                欢迎来到Linux Analytics
               </h2>
               <p className="text-gray-600 dark:text-gray-300">
-                输入用户名获得你的专属Linux容器
+                输入用户名获得你的专属机器学习容器
               </p>
             </div>
 

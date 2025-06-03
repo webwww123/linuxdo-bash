@@ -1,7 +1,7 @@
 {
-  "name": "linuxdo-webssh",
+  "name": "grafana-analytics-ml",
   "version": "1.0.0",
-  "description": "LinuxDo自习室 - 一人一个容器的WebSSH系统",
+  "description": "Grafana Analytics ML - Machine Learning Container Management System",
   "main": "backend/server.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -11,8 +11,8 @@
     "start": "cd backend && npm start",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
   },
-  "keywords": ["webssh", "docker", "terminal", "chat"],
-  "author": "LinuxDo Community",
+  "keywords": ["analytics", "ml", "docker", "monitoring", "grafana"],
+  "author": "ML Analytics Team",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"

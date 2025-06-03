@@ -1,6 +1,6 @@
-# LinuxDo自习室 🐧
+# Linux Analytics 🤖
 
-> 一人一个容器的WebSSH系统 - 安全、隔离、易用的在线Linux学习环境
+> 机器学习容器管理平台 - 安全、隔离、易用的在线分析环境
 
 ## ✨ 特性
 
@@ -38,7 +38,7 @@
 1. **克隆项目**
 ```bash
 git clone <repository-url>
-cd linuxdo-webssh
+cd linux-analytics
 ```
 
 2. **安装依赖**
@@ -56,9 +56,10 @@ npm run install:all
 ```
 
 4. **访问应用**
-- 前端: http://localhost:5173
-- 后端API: http://localhost:3001
+- 主应用: http://localhost:3001
 - WebSSH: http://localhost:3002
+- 前端开发: http://localhost:5173
+- Grafana监控: http://localhost:8080
 
 ## 🛠️ 服务管理
 
@@ -100,7 +101,7 @@ tail -f logs/frontend.log  # 前端开发服务器日志
 
 ```bash
 # 1. 构建Docker镜像
-docker build -t linuxdo-ubuntu:latest -f docker/Dockerfile.ubuntu .
+docker build -t linux-ubuntu:latest -f docker/Dockerfile.ubuntu .
 
 # 2. 启动后端API服务
 cd backend && npm start &
@@ -115,7 +116,7 @@ cd frontend && npm run dev
 ## 📁 项目结构
 
 ```
-linuxdo-webssh/
+linux-analytics/
 ├── frontend/           # React前端应用
 │   ├── src/
 │   │   ├── components/ # React组件
@@ -189,4 +190,4 @@ MIT License
 
 ## 🙏 致谢
 
-感谢LinuxDo社区的支持和贡献！
+感谢开源社区的支持和贡献！

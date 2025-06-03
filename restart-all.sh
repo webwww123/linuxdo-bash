@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LinuxDo自习室 - 快速重启脚本
+# Linux容器管理系统 - 快速重启脚本
 
 set -e  # 遇到错误立即退出
 
@@ -20,7 +20,7 @@ print_message() {
 print_header() {
     echo
     echo -e "${CYAN}================================${NC}"
-    echo -e "${CYAN}  LinuxDo自习室 - 快速重启${NC}"
+    echo -e "${CYAN}  Linux容器管理系统 - 快速重启${NC}"
     echo -e "${CYAN}================================${NC}"
     echo
 }
@@ -80,7 +80,7 @@ main() {
         esac
     done
     
-    print_step "开始重启LinuxDo自习室..."
+    print_step "开始重启Linux容器管理系统..."
     
     # 停止所有服务
     print_message "正在停止所有服务..." $YELLOW

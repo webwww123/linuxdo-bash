@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LinuxDo自习室 - 一键部署脚本
+# Linux Analytics - 一键部署脚本
 
 set -e
 
@@ -37,7 +37,7 @@ print_error() {
 print_header() {
     echo
     echo -e "${CYAN}================================${NC}"
-    echo -e "${CYAN}  LinuxDo自习室 一键部署${NC}"
+    echo -e "${CYAN}  Linux Analytics 一键部署${NC}"
     echo -e "${CYAN}================================${NC}"
     echo
 }
@@ -143,7 +143,7 @@ wait_for_services() {
 # 显示部署结果
 show_result() {
     echo
-    print_message "🎉 LinuxDo自习室部署成功！" $GREEN
+    print_message "🎉自习室部署成功！" $GREEN
     echo
     print_message "📱 访问地址:" $CYAN
     print_message "   主应用: http://localhost:${API_PORT}" $BLUE

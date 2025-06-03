@@ -2,12 +2,12 @@ const express = require('express');
 const passport = require('passport');
 const router = express.Router();
 
-// LinuxDo OAuth登录
-router.get('/linuxdo', passport.authenticate('linuxdo'));
+// Linux OAuth登录
+router.get('/linux', passport.authenticate('linux'));
 
-// LinuxDo OAuth回调
-router.get('/linuxdo/callback', 
-  passport.authenticate('linuxdo', { failureRedirect: '/login?error=auth_failed' }),
+// Linux OAuth回调
+router.get('/linux/callback',
+  passport.authenticate('linux', { failureRedirect: '/login?error=auth_failed' }),
   (req, res) => {
     // 登录成功，重定向到前端
     const user = req.user;

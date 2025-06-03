@@ -10,8 +10,8 @@ const Header = ({ username, onLogout, onlineCount = 0 }) => {
   const notifications = [
     {
       id: 1,
-      title: "欢迎使用LinuxDo自习室！",
-      content: "支持多用户在线协作学习，每人一个独立的Ubuntu容器环境。",
+      title: "欢迎使用Linux Analytics！",
+      content: "支持多用户机器学习协作，每人一个独立的容器环境。",
       time: "2024-01-15",
       type: "info"
     },
@@ -63,10 +63,10 @@ const Header = ({ username, onLogout, onlineCount = 0 }) => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                LinuxDo自习室
+                Linux Analytics
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
-                一人一个容器的WebSSH系统
+                机器学习容器管理平台
               </p>
             </div>
           </div>
@@ -155,7 +155,7 @@ const Header = ({ username, onLogout, onlineCount = 0 }) => {
 
             {/* GitHub链接 */}
             <a
-              href="https://github.com/linuxdo-community"
+              href="https://github.com/ml-analytics"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -182,7 +182,7 @@ const Header = ({ username, onLogout, onlineCount = 0 }) => {
               </div>
               <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
                 <Heart size={14} />
-                <span>Made with ❤️ by LinuxDo Community</span>
+                <span>Made with ❤️ by ML Analytics Team</span>
               </div>
             </div>
           </div>

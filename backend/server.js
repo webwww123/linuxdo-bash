@@ -18,9 +18,12 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? false : [
+    origin: process.env.NODE_ENV === 'production' ? true : [
       "http://localhost:5173",
       "http://localhost:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3001",
+      "http://127.0.0.1:5173",
       /^https:\/\/.*\.app\.github\.dev$/
     ],
     methods: ["GET", "POST"],
@@ -30,9 +33,12 @@ const io = socketIo(server, {
 
 // 中间件
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? false : [
+  origin: process.env.NODE_ENV === 'production' ? true : [
     "http://localhost:5173",
     "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:5173",
     /^https:\/\/.*\.app\.github\.dev$/
   ],
   credentials: true
@@ -457,5 +463,5 @@ setInterval(async () => {
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`LinuxDo WebSSH服务器运行在端口 ${PORT}`);
+  console.log(`Linux Analytics服务器运行在端口 ${PORT}`);
 });

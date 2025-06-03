@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LinuxDo自习室 Docker构建和推送脚本
+# Linux Analytics Docker构建和推送脚本
 
 set -e
 
@@ -31,7 +31,7 @@ print_error() {
 print_header() {
     echo
     echo -e "${CYAN}================================${NC}"
-    echo -e "${CYAN}  LinuxDo自习室 Docker构建${NC}"
+    echo -e "${CYAN}  Linux Analytics Docker构建${NC}"
     echo -e "${CYAN}================================${NC}"
     echo
 }
@@ -94,9 +94,10 @@ test_image() {
     
     # 启动测试容器
     CONTAINER_ID=$(docker run -d \
-        --name linuxdo-test \
+        --name analytics-test \
         -p 13001:3001 \
         -p 13002:3002 \
+        -p 18080:8080 \
         "${FULL_IMAGE_NAME}")
     
     print_message "测试容器ID: ${CONTAINER_ID}" $CYAN
@@ -144,12 +145,14 @@ show_usage() {
     echo
     print_message "1. 直接运行:" $BLUE
     echo "   docker run -d \\"
-    echo "     --name linuxdo-webssh \\"
+    echo "     --name grafana-analytics \\"
     echo "     --restart unless-stopped \\"
     echo "     -p 3001:3001 \\"
     echo "     -p 3002:3002 \\"
+    echo "     -p 5173:5173 \\"
+    echo "     -p 8080:8080 \\"
     echo "     -v /var/run/docker.sock:/var/run/docker.sock \\"
-    echo "     -v linuxdo-data:/app/backend/data \\"
+    echo "     -v analytics-data:/app/backend/data \\"
     echo "     ${FULL_IMAGE_NAME}"
     echo
     print_message "2. 使用docker-compose:" $BLUE
@@ -158,6 +161,8 @@ show_usage() {
     print_message "📋 访问地址:" $CYAN
     print_message "   主应用: http://localhost:3001" $BLUE
     print_message "   WebSSH: http://localhost:3002" $BLUE
+    print_message "   前端开发: http://localhost:5173" $BLUE
+    print_message "   Grafana监控: http://localhost:8080" $BLUE
     echo
 }
 

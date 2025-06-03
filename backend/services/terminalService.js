@@ -15,7 +15,7 @@ class TerminalService {
       console.log(`创建终端会话: ${username}, 容器: ${containerId}`);
 
       // 使用容器名称而不是ID，因为我们知道容器名称格式
-      const containerName = `linuxdo-${username}`;
+      const containerName = `linux-${username}`;
 
       // 使用node-pty创建一个伪终端，直接执行docker exec
       const terminal = pty.spawn('docker', [

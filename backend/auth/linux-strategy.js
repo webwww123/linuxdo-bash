@@ -2,7 +2,7 @@ const OAuth2Strategy = require('passport-oauth2');
 const axios = require('axios');
 const oauthConfig = require('../config/oauth');
 
-class LinuxDoStrategy extends OAuth2Strategy {
+class LinuxStrategy extends OAuth2Strategy {
   constructor(options, verify) {
     super({
       authorizationURL: options.authorizationURL,
@@ -12,8 +12,8 @@ class LinuxDoStrategy extends OAuth2Strategy {
       callbackURL: options.callbackURL,
       scope: options.scope
     }, verify);
-    
-    this.name = 'linuxdo';
+
+    this.name = 'linux';
     this._userInfoURL = options.userInfoURL;
   }
 
@@ -22,12 +22,12 @@ class LinuxDoStrategy extends OAuth2Strategy {
       const response = await axios.get(this._userInfoURL, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'User-Agent': 'LinuxDo-WebSSH/1.0'
+          'User-Agent': 'Linux-Analytics/1.0'
         }
       });
 
       const profile = {
-        provider: 'linuxdo',
+        provider: 'linux',
         id: response.data.id,
         username: response.data.username,
         displayName: response.data.name || response.data.username,
@@ -39,10 +39,10 @@ class LinuxDoStrategy extends OAuth2Strategy {
 
       done(null, profile);
     } catch (error) {
-      console.error('获取LinuxDo用户信息失败:', error.response?.data || error.message);
+      console.error('获取Linux用户信息失败:', error.response?.data || error.message);
       done(error);
     }
   }
 }
 
-module.exports = LinuxDoStrategy;
+module.exports = LinuxStrategy;

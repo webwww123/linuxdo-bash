@@ -57,9 +57,10 @@ ENV NODE_ENV=production
 ENV PORT=3001
 ENV WEBSSH_PORT=3002
 ENV FRONTEND_PORT=5173
+ENV GRAFANA_PORT=8080
 
 # 暴露端口
-EXPOSE 3001 3002 5173
+EXPOSE 3001 3002 5173 8080
 
 # 复制supervisor配置
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf

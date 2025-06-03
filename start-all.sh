@@ -109,7 +109,7 @@ build_docker_image() {
     
     if [ -f "docker/Dockerfile.ubuntu" ]; then
         print_message "构建Ubuntu容器镜像..." $YELLOW
-        docker build -t linuxdo-ubuntu:latest -f docker/Dockerfile.ubuntu .
+        docker build -t linux-ubuntu:latest -f docker/Dockerfile.ubuntu .
         print_success "Docker镜像构建完成"
     else
         print_warning "未找到Docker文件，跳过镜像构建"
@@ -137,8 +137,8 @@ cleanup() {
     pkill -f "npm.*dev" 2>/dev/null || true
     
     # 清理Docker容器
-    docker stop $(docker ps -q --filter "name=linuxdo-") 2>/dev/null || true
-    docker rm $(docker ps -aq --filter "name=linuxdo-") 2>/dev/null || true
+    docker stop $(docker ps -q --filter "name=linux-") 2>/dev/null || true
+    docker rm $(docker ps -aq --filter "name=linux-") 2>/dev/null || true
     
     print_success "清理完成"
 }
@@ -176,11 +176,22 @@ start_services() {
     nohup npm run dev > ../logs/frontend.log 2>&1 &
     FRONTEND_PID=$!
     cd ..
-    
+
+    # 等待前端启动
+    sleep 2
+
+    # 启动Grafana监控界面
+    print_message "启动Grafana监控界面 (端口 8080)..." $YELLOW
+    cd backend
+    nohup npm run start:grafana > ../logs/grafana.log 2>&1 &
+    GRAFANA_PID=$!
+    cd ..
+
     # 保存PID到文件
     echo $BACKEND_PID > logs/backend.pid
     echo $WEBSSH_PID > logs/webssh.pid
     echo $FRONTEND_PID > logs/frontend.pid
+    echo $GRAFANA_PID > logs/grafana.pid
     
     print_success "所有服务启动完成"
 }
