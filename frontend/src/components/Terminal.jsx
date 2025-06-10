@@ -166,12 +166,20 @@ const Terminal = ({ socket, username, onFullscreenChange }) => {
   useEffect(() => {
     const handleWindowResize = () => {
       const iframe = document.querySelector('.terminal-container iframe');
-      if (iframe && iframe.contentWindow) {
+      if (iframe) {
         try {
           // 延迟触发，确保布局稳定
           setTimeout(() => {
-            const resizeEvent = new Event('resize');
-            iframe.contentWindow.dispatchEvent(resizeEvent);
+            try {
+              // 只使用postMessage，避免跨域问题
+              iframe.contentWindow?.postMessage({
+                type: 'resize',
+                width: iframe.clientWidth,
+                height: iframe.clientHeight
+              }, '*');
+            } catch (error) {
+              console.warn('Failed to notify iframe of window resize:', error);
+            }
           }, 100);
         } catch (error) {
           console.warn('Failed to notify iframe of window resize:', error);
@@ -204,9 +212,16 @@ const Terminal = ({ socket, username, onFullscreenChange }) => {
             fullscreen: newFullscreenState
           }, '*');
 
-          // 触发iframe的resize事件
-          const resizeEvent = new Event('resize');
-          iframe.contentWindow.dispatchEvent(resizeEvent);
+          // 使用postMessage通知iframe
+          try {
+            iframe.contentWindow?.postMessage({
+              type: 'resize',
+              width: iframe.clientWidth,
+              height: iframe.clientHeight
+            }, '*');
+          } catch (error) {
+            console.warn('Failed to notify iframe resize:', error);
+          }
         } catch (error) {
           console.warn('Failed to notify iframe resize:', error);
         }
@@ -263,7 +278,15 @@ const Terminal = ({ socket, username, onFullscreenChange }) => {
             shiftKey: true,
             bubbles: true
           });
-          iframe.dispatchEvent(event);
+          try {
+            // 使用postMessage发送粘贴事件
+            iframe.contentWindow?.postMessage({
+              type: 'paste',
+              data: text
+            }, '*');
+          } catch (error) {
+            console.warn('Failed to send paste event:', error);
+          }
         }
       }
     } catch (error) {
@@ -373,10 +396,12 @@ const Terminal = ({ socket, username, onFullscreenChange }) => {
                 // 延迟触发resize确保终端正确初始化
                 setTimeout(() => {
                   try {
-                    if (iframe.contentWindow) {
-                      const resizeEvent = new Event('resize');
-                      iframe.contentWindow.dispatchEvent(resizeEvent);
-                    }
+                    // 只使用postMessage，避免跨域问题
+                    iframe.contentWindow?.postMessage({
+                      type: 'resize',
+                      width: iframe.clientWidth,
+                      height: iframe.clientHeight
+                    }, '*');
                   } catch (error) {
                     console.warn('Failed to trigger initial iframe resize:', error);
                   }
@@ -388,8 +413,11 @@ const Terminal = ({ socket, username, onFullscreenChange }) => {
             // 智能地址检测
             const getWebSSHUrl = () => {
               if (window.location.hostname.includes('github.dev')) {
-                // GitHub Codespaces环境
-                return window.location.origin.replace('-5173', '-3002');
+                // GitHub Codespaces环境 - 支持多个端口
+                let origin = window.location.origin;
+                // 替换任何前端端口为3002
+                origin = origin.replace(/-517[3-9]/, '-3002');
+                return origin;
               }
 
               // 自动检测当前环境

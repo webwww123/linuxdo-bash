@@ -43,6 +43,9 @@ class ChatService {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
             message TEXT NOT NULL,
+            message_type TEXT DEFAULT 'text',
+            image_url TEXT,
+            mentions TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
           )
@@ -70,6 +73,67 @@ class ChatService {
               reject(err);
             } else {
               console.log('消息表和点赞表初始化完成');
+              // 执行数据库迁移
+              this.migrateDatabase().then(() => {
+                resolve();
+              }).catch(reject);
+            }
+          });
+        });
+      });
+    });
+  }
+
+  /**
+   * 数据库迁移 - 添加新字段
+   */
+  migrateDatabase() {
+    return new Promise((resolve, reject) => {
+      // 检查是否需要添加新字段
+      this.db.all("PRAGMA table_info(messages)", (err, columns) => {
+        if (err) {
+          console.error('检查表结构失败:', err);
+          reject(err);
+          return;
+        }
+
+        const columnNames = columns.map(col => col.name);
+        const migrations = [];
+
+        // 检查并添加缺失的字段
+        if (!columnNames.includes('message_type')) {
+          migrations.push("ALTER TABLE messages ADD COLUMN message_type TEXT DEFAULT 'text'");
+        }
+        if (!columnNames.includes('image_url')) {
+          migrations.push("ALTER TABLE messages ADD COLUMN image_url TEXT");
+        }
+        if (!columnNames.includes('mentions')) {
+          migrations.push("ALTER TABLE messages ADD COLUMN mentions TEXT");
+        }
+
+        if (migrations.length === 0) {
+          console.log('数据库表结构已是最新版本');
+          resolve();
+          return;
+        }
+
+        console.log(`执行 ${migrations.length} 个数据库迁移...`);
+
+        // 执行迁移
+        let completed = 0;
+        migrations.forEach((migration, index) => {
+          this.db.run(migration, (err) => {
+            if (err) {
+              console.error(`迁移失败 ${index + 1}:`, err);
+              reject(err);
+              return;
+            }
+
+            completed++;
+            console.log(`迁移完成 ${completed}/${migrations.length}: ${migration}`);
+
+            if (completed === migrations.length) {
+              console.log('所有数据库迁移完成');
               resolve();
             }
           });
@@ -140,9 +204,27 @@ class ChatService {
   }
 
   /**
+   * 解析消息中的@用户
+   */
+  parseMentions(message) {
+    const mentionRegex = /@([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
+    const mentions = [];
+    let match;
+
+    while ((match = mentionRegex.exec(message)) !== null) {
+      const username = match[1];
+      if (!mentions.includes(username)) {
+        mentions.push(username);
+      }
+    }
+
+    return mentions;
+  }
+
+  /**
    * 保存聊天消息
    */
-  saveMessage(username, message) {
+  saveMessage(username, message, messageType = 'text', imageUrl = null, mentions = null) {
     return new Promise((resolve, reject) => {
       if (!this.db) {
         reject(new Error('数据库未初始化'));
@@ -150,12 +232,12 @@ class ChatService {
       }
 
       const stmt = this.db.prepare(`
-        INSERT INTO messages (username, message, timestamp, created_at)
-        VALUES (?, ?, datetime('now'), strftime('%s', 'now'))
+        INSERT INTO messages (username, message, message_type, image_url, mentions, timestamp, created_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'), strftime('%s', 'now'))
       `);
 
       const self = this; // 保存this引用
-      stmt.run([username, message], function(err) {
+      stmt.run([username, message, messageType, imageUrl, mentions], function(err) {
         if (err) {
           console.error('保存消息失败:', err);
           reject(err);
@@ -165,7 +247,7 @@ class ChatService {
 
           // 获取刚插入的消息
           self.db.get(`
-            SELECT id, username, message, timestamp, created_at
+            SELECT id, username, message, message_type, image_url, mentions, timestamp, created_at
             FROM messages
             WHERE id = ?
           `, [insertId], (err, row) => {
@@ -181,6 +263,9 @@ class ChatService {
                 id: row.id,
                 username: row.username,
                 message: row.message,
+                messageType: row.message_type,
+                imageUrl: row.image_url,
+                mentions: row.mentions ? JSON.parse(row.mentions) : null,
                 timestamp: row.timestamp,
                 createdAt: row.created_at * 1000 // 转换为毫秒
               });
@@ -195,7 +280,7 @@ class ChatService {
   /**
    * 获取最近的聊天消息
    */
-  getRecentMessages(limit = 50) {
+  getRecentMessages(limit = 10000) {
     return new Promise((resolve, reject) => {
       if (!this.db) {
         reject(new Error('数据库未初始化'));
@@ -203,7 +288,7 @@ class ChatService {
       }
 
       this.db.all(`
-        SELECT id, username, message, timestamp, created_at
+        SELECT id, username, message, message_type, image_url, mentions, timestamp, created_at
         FROM messages
         ORDER BY created_at DESC
         LIMIT ?
@@ -216,6 +301,9 @@ class ChatService {
             id: row.id,
             username: row.username,
             message: row.message,
+            messageType: row.message_type,
+            imageUrl: row.image_url,
+            mentions: row.mentions ? JSON.parse(row.mentions) : null,
             timestamp: row.timestamp,
             createdAt: row.created_at * 1000
           }));

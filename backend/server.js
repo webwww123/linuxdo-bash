@@ -3,6 +3,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 // const session = require('express-session');
 // const passport = require('passport');
 
@@ -20,10 +22,14 @@ const io = socketIo(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' ? true : [
       "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175",
+      "http://localhost:5176",
       "http://localhost:3000",
       "http://localhost:3001",
       "http://127.0.0.1:3001",
       "http://127.0.0.1:5173",
+      "http://127.0.0.1:5176",
       /^https:\/\/.*\.app\.github\.dev$/
     ],
     methods: ["GET", "POST"],
@@ -35,16 +41,57 @@ const io = socketIo(server, {
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? true : [
     "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:5176",
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3001",
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5176",
     /^https:\/\/.*\.app\.github\.dev$/
   ],
   credentials: true
 }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// 确保上传目录存在
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// 配置multer用于文件上传
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    // 生成唯一文件名
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'chat-image-' + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB限制
+  },
+  fileFilter: function (req, file, cb) {
+    // 只允许图片文件
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('只允许上传图片文件'));
+    }
+  }
+});
+
+// 静态文件服务 - 提供上传的图片
+app.use('/uploads', express.static(uploadsDir));
 
 // Session配置 (注释掉OAuth相关)
 // app.use(session({
@@ -115,6 +162,25 @@ app.get('/api/users', async (req, res) => {
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// 图片上传API
+app.post('/api/upload-image', upload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '没有上传文件' });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+    res.json({
+      success: true,
+      imageUrl: imageUrl,
+      filename: req.file.filename
+    });
+  } catch (error) {
+    console.error('图片上传失败:', error);
+    res.status(500).json({ error: '图片上传失败' });
   }
 });
 
@@ -237,7 +303,7 @@ io.on('connection', (socket) => {
   // 聊天消息
   socket.on('chat-message', async (data) => {
     try {
-      console.log('收到聊天消息:', { username: socket.username, message: data.message });
+      console.log('收到聊天消息:', { username: socket.username, message: data.message, messageType: data.messageType });
 
       // 检查用户是否已登录
       if (!socket.username) {
@@ -246,24 +312,47 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // 检查消息内容
-      if (!data.message || !data.message.trim()) {
+      // 检查消息内容（图片消息可以没有文本）
+      if (data.messageType !== 'image' && (!data.message || !data.message.trim())) {
         console.error('空消息内容');
         socket.emit('error', { message: '消息内容不能为空' });
         return;
       }
 
       // 检查防刷屏限制
-      const rateLimitCheck = chatService.checkRateLimit(socket.username, data.message);
+      const checkMessage = data.message || `[图片:${data.imageUrl}]`;
+      const rateLimitCheck = chatService.checkRateLimit(socket.username, checkMessage);
       if (!rateLimitCheck.allowed) {
         console.log('消息被防刷屏限制:', rateLimitCheck.reason);
         socket.emit('error', { message: rateLimitCheck.reason });
         return;
       }
 
-      const message = await chatService.saveMessage(socket.username, data.message);
+      // 解析@用户
+      const mentions = data.message ? chatService.parseMentions(data.message) : [];
+      const mentionsJson = mentions.length > 0 ? JSON.stringify(mentions) : null;
+
+      const message = await chatService.saveMessage(
+        socket.username,
+        data.message || '',
+        data.messageType || 'text',
+        data.imageUrl || null,
+        mentionsJson
+      );
+
       console.log('消息保存成功，广播给所有用户:', message);
       io.emit('chat-message', message);
+
+      // 如果有@用户，发送特殊通知
+      if (mentions.length > 0) {
+        mentions.forEach(mentionedUser => {
+          io.to(mentionedUser).emit('mentioned', {
+            fromUser: socket.username,
+            message: data.message,
+            messageId: message.id
+          });
+        });
+      }
     } catch (error) {
       console.error('聊天消息处理失败:', error);
       socket.emit('error', { message: '发送消息失败: ' + error.message });

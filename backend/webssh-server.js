@@ -331,6 +331,14 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 3002;
-server.listen(PORT, () => {
-  console.log(`WebSSH server running on port ${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`WebSSH server listening on 0.0.0.0:${PORT}`);
+});
+
+// 添加错误处理
+server.on('error', (err) => {
+  console.error('WebSSH server error:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+  }
 });

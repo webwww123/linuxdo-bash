@@ -67,7 +67,10 @@ function App() {
       return `${protocol}//${hostname}:3001`;
     };
 
-    const newSocket = io(getBackendUrl(), {
+    const backendUrl = getBackendUrl();
+    console.log('连接到后端URL:', backendUrl);
+
+    const newSocket = io(backendUrl, {
       autoConnect: false,
       timeout: 20000,
       reconnection: true,
@@ -184,7 +187,11 @@ function App() {
     // 为Linux登录创建新的socket连接
     const getBackendUrl = () => {
       if (window.location.hostname.includes('github.dev')) {
-        return window.location.origin.replace('-5173', '-3001');
+        // GitHub Codespaces环境 - 支持多个前端端口
+        let origin = window.location.origin;
+        // 替换任何前端端口为3001
+        origin = origin.replace(/-517[3-9]/, '-3001');
+        return origin;
       }
 
       // 自动检测当前环境
@@ -197,11 +204,14 @@ function App() {
         return `${protocol}//${hostname}:3001`;
       }
 
-      // 如果是开发环境（5173端口）或其他端口，连接到3001
+      // 如果是开发环境或其他端口，连接到3001
       return `${protocol}//${hostname}:3001`;
     };
 
-    const newSocket = io(getBackendUrl(), {
+    const backendUrl = getBackendUrl();
+    console.log('自动登录连接到后端URL:', backendUrl);
+
+    const newSocket = io(backendUrl, {
       autoConnect: true
     });
 
@@ -314,14 +324,14 @@ function App() {
     });
   };
 
-  const handleSendMessage = (message) => {
+  const handleSendMessage = (messageData) => {
     if (!socket || !isConnected) {
       console.error('无法发送消息: socket未连接', { socket: !!socket, isConnected });
       return;
     }
 
-    console.log('发送聊天消息:', { message, username, isConnected });
-    socket.emit('chat-message', { message });
+    console.log('发送聊天消息:', { messageData, username, isConnected });
+    socket.emit('chat-message', messageData);
   };
 
   const handleTerminalFullscreenChange = (isFullscreen) => {
@@ -457,6 +467,7 @@ function App() {
                 socket={socket}
                 messages={chatMessages}
                 currentUsername={username}
+                activeUsers={activeUsers}
                 onSendMessage={handleSendMessage}
               />
             </div>

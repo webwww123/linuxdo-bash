@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, Smile } from 'lucide-react';
+import { Send, MessageCircle, Smile, Image, AtSign } from 'lucide-react';
 import { getUserAvatarColor, getUserInitial, getUserAvatar } from '../utils/avatarColors';
 
 // 常用表情列表
@@ -30,19 +30,36 @@ const EMOJI_LIST = [
   '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️'
 ];
 
-const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
+const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = [] }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
   const [userAvatars, setUserAvatars] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
   const emojiPickerRef = useRef(null);
+  const mentionListRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // 用于跟踪是否是初次加载
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // 自动滚动到底部 - 只在聊天容器内滚动，且只在有新消息时滚动
   useEffect(() => {
     if (messagesContainerRef.current && messages.length > 0) {
       const container = messagesContainerRef.current;
+
+      // 如果是初次加载，强制滚动到底部
+      if (isInitialLoad) {
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight;
+          setIsInitialLoad(false);
+        });
+        return;
+      }
 
       // 检查用户是否已经滚动到接近底部
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
@@ -55,7 +72,7 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
         });
       }
     }
-  }, [messages]);
+  }, [messages, isInitialLoad]);
 
   // 加载用户头像设置
   useEffect(() => {
@@ -84,11 +101,14 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
     loadUserAvatars();
   }, [messages]);
 
-  // 点击外部关闭表情选择器
+  // 点击外部关闭表情选择器和@列表
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
         setShowEmojiPicker(false);
+      }
+      if (mentionListRef.current && !mentionListRef.current.contains(event.target)) {
+        setShowMentionList(false);
       }
     };
 
@@ -102,9 +122,13 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
-    onSendMessage(inputMessage.trim());
+    onSendMessage({
+      message: inputMessage.trim(),
+      messageType: 'text'
+    });
     setInputMessage('');
     setShowEmojiPicker(false);
+    setShowMentionList(false);
   };
 
   const handleKeyDown = (e) => {
@@ -140,10 +164,24 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
     textarea.style.height = Math.min(scrollHeight, maxHeight) + 'px';
   };
 
-  // 监听输入变化，自动调整高度
+  // 监听输入变化，自动调整高度和处理@功能
   const handleInputChange = (e) => {
-    setInputMessage(e.target.value);
+    const value = e.target.value;
+    setInputMessage(value);
     adjustTextareaHeight(e.target);
+
+    // 检查是否输入了@符号
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPosition);
+    const atMatch = textBeforeCursor.match(/@([a-zA-Z0-9_\u4e00-\u9fa5]*)$/);
+
+    if (atMatch) {
+      setMentionFilter(atMatch[1]);
+      setShowMentionList(true);
+    } else {
+      setShowMentionList(false);
+      setMentionFilter('');
+    }
   };
 
   const handleEmojiSelect = (emoji) => {
@@ -154,6 +192,152 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
 
   const toggleEmojiPicker = () => {
     setShowEmojiPicker(!showEmojiPicker);
+  };
+
+  // 处理图片粘贴
+  const handlePaste = async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await uploadImage(file);
+        }
+        break;
+      }
+    }
+  };
+
+  // 处理图片文件选择
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      uploadImage(file);
+    }
+    // 清空input值，允许重复选择同一文件
+    e.target.value = '';
+  };
+
+  // 上传图片
+  const uploadImage = async (file) => {
+    if (!file.type.startsWith('image/')) {
+      alert('只能上传图片文件');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('图片大小不能超过5MB');
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      console.log('图片上传结果:', result);
+      if (result.success) {
+        // 构建完整的图片URL - 指向后端服务器
+        const backendUrl = 'http://localhost:3001';
+        const fullImageUrl = backendUrl + result.imageUrl;
+        console.log('发送图片消息:', { imageUrl: fullImageUrl });
+
+        // 发送图片消息
+        onSendMessage({
+          message: '',
+          messageType: 'image',
+          imageUrl: fullImageUrl
+        });
+      } else {
+        alert('图片上传失败: ' + result.error);
+      }
+    } catch (error) {
+      console.error('图片上传失败:', error);
+      alert('图片上传失败');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // 选择@用户
+  const selectMention = (username) => {
+    const cursorPosition = inputRef.current.selectionStart;
+    const textBeforeCursor = inputMessage.substring(0, cursorPosition);
+    const textAfterCursor = inputMessage.substring(cursorPosition);
+
+    // 找到@符号的位置
+    const atIndex = textBeforeCursor.lastIndexOf('@');
+    if (atIndex !== -1) {
+      const newText = textBeforeCursor.substring(0, atIndex) + `@${username} ` + textAfterCursor;
+      setInputMessage(newText);
+      setShowMentionList(false);
+      setMentionFilter('');
+
+      // 设置光标位置
+      setTimeout(() => {
+        const newCursorPos = atIndex + username.length + 2;
+        inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        inputRef.current.focus();
+      }, 0);
+    }
+  };
+
+  // 过滤用户列表
+  const filteredUsers = activeUsers.filter(user =>
+    user !== currentUsername &&
+    user.toLowerCase().includes(mentionFilter.toLowerCase())
+  );
+
+  // 渲染带@高亮的消息
+  const renderMessageWithMentions = (text) => {
+    if (!text) return '';
+
+    const mentionRegex = /@([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mentionRegex.exec(text)) !== null) {
+      // 添加@之前的文本
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+
+      // 添加@用户（高亮显示）
+      const mentionedUser = match[1];
+      const isCurrentUser = mentionedUser === currentUsername;
+      parts.push(
+        <span
+          key={match.index}
+          className={`font-semibold ${
+            isCurrentUser
+              ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 px-1 rounded'
+              : 'text-green-600 dark:text-green-400'
+          }`}
+        >
+          @{mentionedUser}
+        </span>
+      );
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // 添加剩余文本
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts.length > 1 ? parts : text;
   };
 
   const formatTime = (timestamp) => {
@@ -251,9 +435,34 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
                     )}
 
                     <div className={`message-bubble ${isOwn ? 'own' : 'other'}`}>
-                      <pre className="whitespace-pre-wrap font-sans text-sm m-0">
-                        {message.message}
-                      </pre>
+                      {message.messageType === 'image' ? (
+                        <div className="space-y-2">
+                          <img
+                            src={message.imageUrl}
+                            alt="聊天图片"
+                            className="max-w-xs max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(message.imageUrl, '_blank')}
+                            onError={(e) => {
+                              console.error('图片加载失败:', message.imageUrl);
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                            onLoad={() => console.log('图片加载成功:', message.imageUrl)}
+                          />
+                          <div style={{display: 'none'}} className="text-red-500 text-sm">
+                            图片加载失败: {message.imageUrl}
+                          </div>
+                          {message.message && (
+                            <pre className="whitespace-pre-wrap font-sans text-sm m-0">
+                              {renderMessageWithMentions(message.message)}
+                            </pre>
+                          )}
+                        </div>
+                      ) : (
+                        <pre className="whitespace-pre-wrap font-sans text-sm m-0">
+                          {renderMessageWithMentions(message.message)}
+                        </pre>
+                      )}
                     </div>
 
                     <div className="message-meta">
@@ -277,8 +486,9 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
               value={inputMessage}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="输入消息..."
-              className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-linux-500 focus:border-transparent text-sm resize-none"
+              onPaste={handlePaste}
+              placeholder="输入消息... (支持粘贴图片，输入@提及用户)"
+              className="w-full px-3 py-2 pr-20 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-linux-500 focus:border-transparent text-sm resize-none"
               maxLength={500}
               rows={1}
               style={{
@@ -287,28 +497,95 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage }) => {
                 overflowY: inputMessage.includes('\n') ? 'auto' : 'hidden'
               }}
             />
-            {/* 表情按钮 */}
-            <button
-              type="button"
-              onClick={toggleEmojiPicker}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            >
-              <Smile size={16} />
-            </button>
+
+            {/* 功能按钮组 */}
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-1">
+              {/* @用户按钮 */}
+              <button
+                type="button"
+                onClick={() => setShowMentionList(!showMentionList)}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                title="@用户"
+              >
+                <AtSign size={16} />
+              </button>
+
+              {/* 图片上传按钮 */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors disabled:opacity-50"
+                title="上传图片"
+              >
+                <Image size={16} />
+              </button>
+
+              {/* 表情按钮 */}
+              <button
+                type="button"
+                onClick={toggleEmojiPicker}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                title="表情"
+              >
+                <Smile size={16} />
+              </button>
+            </div>
+
+            {/* 隐藏的文件输入 */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
           </div>
 
           <button
             type="submit"
-            disabled={!inputMessage.trim()}
+            disabled={!inputMessage.trim() || isUploading}
             className={`px-3 py-2 rounded-lg text-white transition-colors ${
-              inputMessage.trim()
+              inputMessage.trim() && !isUploading
                 ? 'bg-linux-500 hover:bg-linux-600'
                 : 'bg-gray-300 cursor-not-allowed'
             }`}
           >
-            <Send size={16} />
+            {isUploading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Send size={16} />
+            )}
           </button>
         </form>
+
+        {/* @用户列表 */}
+        {showMentionList && filteredUsers.length > 0 && (
+          <div
+            ref={mentionListRef}
+            className="absolute bottom-full left-4 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-2 z-50"
+            style={{ width: '200px', maxHeight: '200px' }}
+          >
+            <div className="text-xs text-gray-500 dark:text-gray-400 px-3 py-1 border-b border-gray-200 dark:border-gray-600">
+              选择用户
+            </div>
+            <div className="overflow-y-auto max-h-40">
+              {filteredUsers.map((user) => (
+                <button
+                  key={user}
+                  type="button"
+                  onClick={() => selectMention(user)}
+                  className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                >
+                  <div className={`w-6 h-6 ${getUserAvatarColor(user, userAvatars[user])} text-white rounded-full flex items-center justify-center text-xs font-medium`}>
+                    {getUserInitial(user, userAvatars[user])}
+                  </div>
+                  <span className="text-sm">{user}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 表情选择器 */}
         {showEmojiPicker && (
