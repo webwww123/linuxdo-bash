@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sched.h>
 
 // 伪装配置
 #define FAKE_CPU_CORES 24
@@ -123,13 +124,13 @@ int open(const char *pathname, int flags, ...) {
     if (!real_open) {
         real_open = (open_t)dlsym(RTLD_NEXT, "open");
     }
-    
+
     // 对于某些特殊的proc文件，重定向到我们的伪造文件
     if (pathname && strstr(pathname, "/proc/") == pathname) {
         // 这里可以添加特殊处理，但主要依赖OverlayFS
         // 只处理一些边缘情况
     }
-    
+
     // 处理可变参数
     if (flags & O_CREAT) {
         va_list args;
@@ -140,6 +141,26 @@ int open(const char *pathname, int flags, ...) {
     } else {
         return real_open(pathname, flags);
     }
+}
+
+// 增强的CPU核心数获取函数
+typedef int (*sched_getaffinity_t)(pid_t, size_t, cpu_set_t *);
+int sched_getaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask) {
+    static sched_getaffinity_t real_sched_getaffinity = NULL;
+    if (!real_sched_getaffinity) {
+        real_sched_getaffinity = (sched_getaffinity_t)dlsym(RTLD_NEXT, "sched_getaffinity");
+    }
+
+    int result = real_sched_getaffinity(pid, cpusetsize, mask);
+    if (result == 0 && mask) {
+        // 清空原有的CPU集合
+        CPU_ZERO(mask);
+        // 设置24个CPU
+        for (int i = 0; i < FAKE_CPU_CORES && i < CPU_SETSIZE; i++) {
+            CPU_SET(i, mask);
+        }
+    }
+    return result;
 }
 
 // 获取处理器数量的替代函数
