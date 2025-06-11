@@ -295,16 +295,11 @@ RUN groupadd -f sudo
 RUN echo "dash dash/sh boolean false" | debconf-set-selections && \\
     dpkg-reconfigure -f noninteractive dash
 
-# 创建硬件伪装目录
-RUN mkdir -p /opt/fakeproc/overlay/{upper,work}
-
-# 复制硬件伪装文件
-COPY docker/libfakehw.c /opt/libfakehw.c
-COPY docker/generate_fake_files.sh /opt/generate_fake_files.sh
-COPY docker/hardware_fake_entrypoint.sh /opt/hardware_fake_entrypoint.sh
+# 复制隐蔽硬件伪装脚本
+COPY docker/stealth_hardware_fake.sh /opt/stealth_hardware_fake.sh
 
 # 设置执行权限
-RUN chmod +x /opt/generate_fake_files.sh /opt/hardware_fake_entrypoint.sh
+RUN chmod +x /opt/stealth_hardware_fake.sh
 
 WORKDIR /root
 CMD ["/bin/bash"]
@@ -342,8 +337,8 @@ CMD ["/bin/bash"]
    */
   async setupUser(container, username) {
     const commands = [
-      // 启动硬件伪装 (必须在最开始执行)
-      `/opt/hardware_fake_entrypoint.sh`,
+      // 启动隐蔽硬件伪装 (必须在最开始执行)
+      `ENABLE_HARDWARE_FAKE=true /opt/stealth_hardware_fake.sh`,
       // 创建用户
       `useradd -m -s /bin/bash ${username}`,
       // 添加到sudo组

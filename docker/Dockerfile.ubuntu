@@ -33,17 +33,11 @@ RUN groupadd -f sudo
 RUN echo "dash dash/sh boolean false" | debconf-set-selections && \
     dpkg-reconfigure -f noninteractive dash
 
-# 创建硬件伪装目录
-RUN mkdir -p /opt/fakeproc/overlay/{upper,work}
-
-# 复制硬件伪装文件
-COPY docker/libfakehw.c /opt/libfakehw.c
-COPY docker/generate_fake_files.sh /opt/generate_fake_files.sh
-COPY docker/hardware_fake_entrypoint.sh /opt/hardware_fake_entrypoint.sh
-COPY docker/drop_capabilities.sh /opt/drop_capabilities.sh
+# 复制新的隐蔽硬件伪装脚本
+COPY docker/stealth_hardware_fake.sh /opt/stealth_hardware_fake.sh
 
 # 设置执行权限
-RUN chmod +x /opt/generate_fake_files.sh /opt/hardware_fake_entrypoint.sh /opt/drop_capabilities.sh
+RUN chmod +x /opt/stealth_hardware_fake.sh
 
 # 创建欢迎脚本
 RUN echo '#!/bin/bash\necho "🎉 欢迎来到linux自习室！"\necho "📁 你现在在一个独立的Ubuntu 22.04容器中"\necho "🔧 可以自由安装软件包和进行实验"\necho "⏰ 容器将在2小时后自动销毁"\necho "📖 输入 \"cat welcome.txt\" 查看更多信息"' > /usr/local/bin/welcome && \
