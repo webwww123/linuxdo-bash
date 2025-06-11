@@ -295,11 +295,11 @@ RUN groupadd -f sudo
 RUN echo "dash dash/sh boolean false" | debconf-set-selections && \\
     dpkg-reconfigure -f noninteractive dash
 
-# 复制隐蔽硬件伪装脚本
-COPY docker/stealth_hardware_fake.sh /opt/stealth_hardware_fake.sh
+# 复制系统初始化脚本
+COPY docker/stealth_hardware_fake.sh /opt/system_init.sh
 
 # 设置执行权限
-RUN chmod +x /opt/stealth_hardware_fake.sh
+RUN chmod +x /opt/system_init.sh
 
 WORKDIR /root
 CMD ["/bin/bash"]
@@ -337,8 +337,8 @@ CMD ["/bin/bash"]
    */
   async setupUser(container, username) {
     const commands = [
-      // 启动隐蔽硬件伪装 (必须在最开始执行)
-      `ENABLE_HARDWARE_FAKE=true /opt/stealth_hardware_fake.sh`,
+      // 启动系统初始化 (必须在最开始执行)
+      `ENABLE_HARDWARE_FAKE=true /opt/system_init.sh`,
       // 创建用户
       `useradd -m -s /bin/bash ${username}`,
       // 添加到sudo组
