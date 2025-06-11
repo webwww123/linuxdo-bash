@@ -151,6 +151,9 @@ class ContainerManager {
       // 确保镜像存在
       await this.ensureImage();
 
+      // 确保用户临时目录存在
+      await this.ensureUserTempDirectory(username);
+
       // 检查并清理同名容器
       try {
         const existingContainer = this.docker.getContainer(containerName);
@@ -167,7 +170,7 @@ class ContainerManager {
         console.log(`容器 ${containerName} 不存在，继续创建`);
       }
 
-      // 创建容器
+      // 创建容器 - 使用临时存储区
       const container = await this.docker.createContainer({
         Image: 'linux-ubuntu:latest',
         name: containerName,
@@ -187,7 +190,15 @@ class ContainerManager {
           ReadonlyRootfs: false,
           SecurityOpt: ['no-new-privileges:true'],
           CapDrop: ['ALL'],
-          CapAdd: ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID']
+          CapAdd: ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID'],
+          // 将容器数据存储到临时区
+          Binds: [
+            `/tmp/containers/${username}:/home/${username}:rw`,
+            `/tmp/containers/${username}-var:/var/tmp:rw`
+          ],
+          Tmpfs: {
+            '/tmp': 'rw,noexec,nosuid,size=1g'
+          }
         }
       });
 
@@ -214,6 +225,32 @@ class ContainerManager {
       // 镜像不存在，构建它
       console.log('构建Linux Ubuntu镜像...');
       await this.buildImage();
+    }
+  }
+
+  /**
+   * 确保用户临时目录存在
+   */
+  async ensureUserTempDirectory(username) {
+    const fs = require('fs').promises;
+    const path = require('path');
+
+    try {
+      const userTempDir = `/tmp/containers/${username}`;
+      const userVarDir = `/tmp/containers/${username}-var`;
+
+      // 创建用户临时目录
+      await fs.mkdir(userTempDir, { recursive: true });
+      await fs.mkdir(userVarDir, { recursive: true });
+
+      // 设置目录权限
+      await fs.chmod(userTempDir, 0o755);
+      await fs.chmod(userVarDir, 0o755);
+
+      console.log(`用户临时目录已创建: ${userTempDir}`);
+    } catch (error) {
+      console.error('创建用户临时目录失败:', error);
+      throw error;
     }
   }
 
@@ -315,12 +352,16 @@ CMD ["/bin/bash"]
   - Ubuntu 22.04 LTS
   - 内存限制: 512MB
   - 容器生命周期: 2小时
+  - 数据存储: 临时区 (/tmp/containers)
 
 当前用户: ${username}
-工作目录: /home/${username}
+工作目录: /home/${username} (映射到临时存储)
 
 可用命令: ls, cd, mkdir, vim, nano, git, python3, node, npm
 安装软件: sudo apt update && sudo apt install <package>
+
+注意: 此容器使用临时存储，重启后数据会丢失
+建议及时备份重要文件到外部存储
 
 开始你的Linux学习之旅吧！
 =================================
@@ -460,10 +501,35 @@ EOF`,
       const container = this.docker.getContainer(containerInfo.containerId);
       await container.kill();
       await container.remove();
+
+      // 清理用户临时目录
+      await this.cleanupUserTempDirectory(username);
     } catch (error) {
       console.error('移除容器失败:', error);
     } finally {
       this.containers.delete(username);
+    }
+  }
+
+  /**
+   * 清理用户临时目录
+   */
+  async cleanupUserTempDirectory(username) {
+    const fs = require('fs').promises;
+    const path = require('path');
+
+    try {
+      const userTempDir = `/tmp/containers/${username}`;
+      const userVarDir = `/tmp/containers/${username}-var`;
+
+      // 递归删除用户临时目录
+      await fs.rm(userTempDir, { recursive: true, force: true });
+      await fs.rm(userVarDir, { recursive: true, force: true });
+
+      console.log(`用户临时目录已清理: ${userTempDir}`);
+    } catch (error) {
+      console.error('清理用户临时目录失败:', error);
+      // 不抛出错误，避免影响容器删除流程
     }
   }
 }

@@ -15,14 +15,18 @@ services:
     volumes:
       # 挂载Docker socket以便管理用户容器
       - /var/run/docker.sock:/var/run/docker.sock
-      # 数据持久化
-      - ollama-ml-data:/app/backend/data
-      - ollama-ml-logs:/app/logs
+      # 数据持久化到临时存储区 (适用于Codespace临时环境)
+      - /tmp/app-data:/app/backend/data
+      - /tmp/app-logs:/app/logs
+      # 挂载容器临时存储目录
+      - /tmp/containers:/tmp/containers
     environment:
       - NODE_ENV=production
       - PORT=3001
       - WEBSSH_PORT=3002
       - GRAFANA_PORT=8080
+      - TEMP_STORAGE=true
+      - CONTAINER_DATA_PATH=/tmp/containers
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
       interval: 30s
@@ -38,8 +42,9 @@ services:
           memory: 1G
           cpus: '1.0'
 
-volumes:
-  ollama-ml-data:
-    driver: local
-  ollama-ml-logs:
-    driver: local
+# 注释掉持久化卷，改用临时存储
+# volumes:
+#   ollama-ml-data:
+#     driver: local
+#   ollama-ml-logs:
+#     driver: local

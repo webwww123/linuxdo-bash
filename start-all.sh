@@ -119,11 +119,30 @@ build_docker_image() {
 # 创建必要的目录
 create_directories() {
     print_step "创建必要的目录..."
-    
-    mkdir -p backend/data
-    mkdir -p logs
-    
-    print_success "目录创建完成"
+
+    # 检查是否使用临时存储
+    if [ "$TEMP_STORAGE" = "true" ] || [ -n "$CODESPACE_NAME" ]; then
+        print_message "检测到临时环境，配置临时存储..." $YELLOW
+
+        # 创建临时存储目录
+        mkdir -p /tmp/app-data
+        mkdir -p /tmp/app-logs
+        mkdir -p /tmp/containers
+
+        # 创建符号链接
+        [ -d "backend/data" ] && mv backend/data backend/data.backup 2>/dev/null || true
+        [ -d "logs" ] && mv logs logs.backup 2>/dev/null || true
+
+        ln -sf /tmp/app-data backend/data
+        ln -sf /tmp/app-logs logs
+
+        print_success "临时存储目录配置完成"
+    else
+        # 传统方式创建目录
+        mkdir -p backend/data
+        mkdir -p logs
+        print_success "标准目录创建完成"
+    fi
 }
 
 # 清理旧的进程和容器
@@ -194,6 +213,18 @@ start_services() {
     echo $GRAFANA_PID > logs/grafana.pid
     
     print_success "所有服务启动完成"
+
+    # 显示存储信息
+    if [ "$TEMP_STORAGE" = "true" ] || [ -n "$CODESPACE_NAME" ]; then
+        echo ""
+        print_message "临时存储信息:" $CYAN
+        echo "  • 容器数据: /tmp/containers/"
+        echo "  • 应用数据: /tmp/app-data/"
+        echo "  • 应用日志: /tmp/app-logs/"
+        echo "  • 临时存储容量: $(df -h /tmp | awk 'NR==2 {print $2}')"
+        echo "  • 使用监控脚本: ./monitor-temp-storage.sh"
+        print_message "注意: 临时存储在重启后会丢失数据" $YELLOW
+    fi
 }
 
 # 检查服务状态
