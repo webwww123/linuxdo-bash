@@ -1,0 +1,19 @@
+{
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "archMap": [],
+  "syscalls": [
+    {
+      "names": [
+        "unshare",
+        "mount",
+        "mountat",
+        "ptrace",
+        "kexec_load",
+        "perf_event_open",
+        "pivot_root"
+      ],
+      "action": "SCMP_ACT_KILL",
+      "comment": "Professional advice: Block dangerous syscalls for container escape prevention"
+    }
+  ]
+}

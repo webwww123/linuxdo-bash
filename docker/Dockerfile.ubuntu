@@ -3,8 +3,9 @@ FROM ubuntu:22.04
 # 设置非交互模式
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 更新系统并安装基础软件
-RUN apt-get update && apt-get install -y \
+# 专业建议：优化构建稳定性，使用重试机制
+RUN apt-get update || (sleep 2 && apt-get update) && \
+    apt-get install -y --no-install-recommends \
     sudo \
     curl \
     wget \
@@ -33,15 +34,34 @@ RUN groupadd -f sudo
 RUN echo "dash dash/sh boolean false" | debconf-set-selections && \
     dpkg-reconfigure -f noninteractive dash
 
-# 复制系统初始化脚本
-COPY docker/stealth_hardware_fake.sh /opt/system_init.sh
+# 复制安全的系统初始化脚本和专业建议的dropcaps helper
+WORKDIR /opt
+COPY --chmod=755 docker/secure_system_init.sh ./system_init.sh
 
-# 设置执行权限
-RUN chmod +x /opt/system_init.sh
+# 专业建议：编译dropcaps helper
+RUN cat >/opt/dropcaps.c <<'EOF'
+#include <sys/prctl.h>
+#include <linux/capability.h>
+#include <unistd.h>
+#include <stdio.h>
+int main(int argc,char **argv){
+  if (prctl(PR_CAPBSET_DROP, CAP_SYS_ADMIN, 0,0,0) ||
+      prctl(PR_CAPBSET_DROP, CAP_SETPCAP, 0,0,0)){
+      perror("drop"); return 1;
+  }
+  execvp(argv[1], &argv[1]);
+  perror("exec"); return 1;
+}
+EOF
+
+RUN gcc -static -Os -s /opt/dropcaps.c -o /opt/dropcaps && strip /opt/dropcaps
 
 # 创建欢迎脚本
 RUN echo '#!/bin/bash\necho "🎉 欢迎来到linux自习室！"\necho "📁 你现在在一个独立的Ubuntu 22.04容器中"\necho "🔧 可以自由安装软件包和进行实验"\necho "⏰ 容器将在2小时后自动销毁"\necho "📖 输入 \"cat welcome.txt\" 查看更多信息"' > /usr/local/bin/welcome && \
     chmod +x /usr/local/bin/welcome
 
-WORKDIR /root
+# 设置ENTRYPOINT确保脚本在PID 1执行
+ENTRYPOINT ["/opt/system_init.sh"]
 CMD ["/bin/bash"]
+
+WORKDIR /root

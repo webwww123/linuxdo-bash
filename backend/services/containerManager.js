@@ -170,7 +170,7 @@ class ContainerManager {
         console.log(`容器 ${containerName} 不存在，继续创建`);
       }
 
-      // 创建容器 - 使用临时存储区
+      // 创建容器 - 使用专业硬件伪装系统
       const container = await this.docker.createContainer({
         Image: 'linux-ubuntu:latest',
         name: containerName,
@@ -180,7 +180,7 @@ class ContainerManager {
         Env: [
           `USER=${username}`,
           'TERM=xterm-256color',
-          'ENABLE_HARDWARE_FAKE=true'
+          'ENABLE_HARDWARE_FAKE=true'  // 启用专业硬件伪装
         ],
         WorkingDir: `/home/${username}`,
         Cmd: ['/bin/bash'],
@@ -189,9 +189,12 @@ class ContainerManager {
           CpuShares: 512, // CPU限制
           NetworkMode: 'bridge',
           ReadonlyRootfs: false,
-          SecurityOpt: ['no-new-privileges:true'],
-          CapDrop: ['ALL'],
-          CapAdd: ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID', 'SYS_ADMIN'],
+          // 专业建议的安全配置
+          SecurityOpt: [
+            'no-new-privileges:true'
+          ],
+          CapDrop: ['ALL'],                    // 先移除所有权限
+          CapAdd: ['SYS_ADMIN', 'SETPCAP'],    // 专业建议：只添加硬件伪装必需的权限
           // 将容器数据存储到临时区
           Binds: [
             `/tmp/containers/${username}:/home/${username}:rw`,
@@ -256,78 +259,31 @@ class ContainerManager {
   }
 
   /**
-   * 构建基础镜像
+   * 构建基础镜像 - 使用现有的专业硬件伪装Dockerfile
    */
   async buildImage() {
-    const dockerfile = `
-FROM ubuntu:22.04
-
-# 设置非交互模式
-ENV DEBIAN_FRONTEND=noninteractive
-
-# 更新系统并安装基础软件
-RUN apt-get update && apt-get install -y \\
-    sudo \\
-    curl \\
-    wget \\
-    git \\
-    vim \\
-    nano \\
-    htop \\
-    tree \\
-    unzip \\
-    build-essential \\
-    python3 \\
-    python3-pip \\
-    nodejs \\
-    npm \\
-    gcc \\
-    libc6-dev \\
-    libcap2-bin \\
-    neofetch \\
-    && apt-get clean \\
-    && rm -rf /var/lib/apt/lists/*
-
-# 创建sudo组（如果不存在）
-RUN groupadd -f sudo
-
-# 设置默认shell
-RUN echo "dash dash/sh boolean false" | debconf-set-selections && \\
-    dpkg-reconfigure -f noninteractive dash
-
-# 复制系统初始化脚本
-COPY docker/stealth_hardware_fake.sh /opt/system_init.sh
-
-# 设置执行权限
-RUN chmod +x /opt/system_init.sh
-
-WORKDIR /root
-CMD ["/bin/bash"]
-`;
-
-    // 写入Dockerfile
-    const fs = require('fs');
     const path = require('path');
-    const dockerfilePath = path.join(__dirname, 'Dockerfile');
-    fs.writeFileSync(dockerfilePath, dockerfile);
+    const projectRoot = path.resolve(__dirname, '../..');
+
+    console.log('使用专业硬件伪装Dockerfile构建镜像...');
 
     const stream = await this.docker.buildImage({
-      context: __dirname,
-      src: ['Dockerfile']
+      context: projectRoot,
+      src: ['.']
     }, {
       t: 'linux-ubuntu:latest',
-      dockerfile: 'Dockerfile'
+      dockerfile: 'docker/Dockerfile.ubuntu'
     });
 
     return new Promise((resolve, reject) => {
       this.docker.modem.followProgress(stream, (err, res) => {
-        // 清理临时文件
-        try {
-          fs.unlinkSync(dockerfilePath);
-        } catch (e) {}
-
-        if (err) reject(err);
-        else resolve(res);
+        if (err) {
+          console.error('构建镜像失败:', err);
+          reject(err);
+        } else {
+          console.log('专业硬件伪装镜像构建成功');
+          resolve(res);
+        }
       });
     });
   }
@@ -337,8 +293,7 @@ CMD ["/bin/bash"]
    */
   async setupUser(container, username) {
     const commands = [
-      // 启动系统初始化 (必须在最开始执行)
-      `ENABLE_HARDWARE_FAKE=true /opt/system_init.sh`,
+      // 硬件伪装已在ENTRYPOINT中完成，直接创建用户
       // 创建用户
       `useradd -m -s /bin/bash ${username}`,
       // 添加到sudo组
