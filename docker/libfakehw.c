@@ -117,6 +117,60 @@ long sysconf(int name) {
     }
 }
 
+// openat系统调用劫持 - 处理/sys/devices/system/cpu访问
+typedef int (*openat_t)(int, const char *, int, ...);
+int openat(int dirfd, const char *pathname, int flags, ...) {
+    static openat_t real_openat = NULL;
+    if (!real_openat) {
+        real_openat = (openat_t)dlsym(RTLD_NEXT, "openat");
+    }
+
+    // 处理对关键CPU文件的访问
+    if (pathname) {
+        // 重定向关键的CPU信息文件
+        if (strcmp(pathname, "online") == 0 ||
+            strcmp(pathname, "present") == 0 ||
+            strcmp(pathname, "possible") == 0) {
+            // 检查是否在/sys/devices/system/cpu目录下
+            char cwd_buf[1024];
+            if (dirfd != AT_FDCWD) {
+                char fd_path[64];
+                sprintf(fd_path, "/proc/self/fd/%d", dirfd);
+                ssize_t len = readlink(fd_path, cwd_buf, sizeof(cwd_buf) - 1);
+                if (len > 0) {
+                    cwd_buf[len] = '\0';
+                    if (strstr(cwd_buf, "/sys/devices/system/cpu") != NULL) {
+                        // 重定向到我们的伪造文件
+                        char fake_path[256];
+                        sprintf(fake_path, "/opt/fakesys/devices/system/cpu/%s", pathname);
+
+                        if (flags & O_CREAT) {
+                            va_list args;
+                            va_start(args, flags);
+                            mode_t mode = va_arg(args, int);
+                            va_end(args);
+                            return real_openat(AT_FDCWD, fake_path, flags, mode);
+                        } else {
+                            return real_openat(AT_FDCWD, fake_path, flags);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 处理可变参数
+    if (flags & O_CREAT) {
+        va_list args;
+        va_start(args, flags);
+        mode_t mode = va_arg(args, int);
+        va_end(args);
+        return real_openat(dirfd, pathname, flags, mode);
+    } else {
+        return real_openat(dirfd, pathname, flags);
+    }
+}
+
 // 文件读取伪装 - 用于处理一些直接读取/proc的情况
 typedef int (*open_t)(const char *, int, ...);
 int open(const char *pathname, int flags, ...) {

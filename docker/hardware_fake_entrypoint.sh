@@ -122,6 +122,64 @@ setup_ld_preload() {
     log_success "LD_PRELOAD 配置完成"
 }
 
+# 使用 tmpfs 伪装 /sys/devices/system/cpu
+mount_tmpfs_cpu() {
+    log_step "使用 tmpfs 伪装 /sys/devices/system/cpu..."
+
+    local FAKE_CPUS=${FAKE_CPUS:-24}
+    local CPU_SYS="/sys/devices/system/cpu"
+
+    # 检查是否已经挂载
+    if mountpoint -q "$CPU_SYS" && mount | grep -q "tmpfs.*on $CPU_SYS"; then
+        log_info "$CPU_SYS 已被 tmpfs 覆盖，跳过挂载"
+        return 0
+    fi
+
+    # 1) 备份原目录（如果需要的话）
+    if [ -d "$CPU_SYS" ]; then
+        log_info "备份原始 CPU 目录..."
+        mkdir -p /real_sys_cpu
+        # 尝试移动原目录，如果失败就继续
+        mount --move "$CPU_SYS" /real_sys_cpu 2>/dev/null || true
+    fi
+
+    # 2) 挂载新的 tmpfs
+    log_info "挂载 tmpfs 到 $CPU_SYS..."
+    if mount -t tmpfs -o mode=755,size=4M tmpfs "$CPU_SYS"; then
+        log_success "tmpfs 挂载成功"
+
+        # 3) 生成伪造的 CPU 目录和文件
+        log_info "生成 $FAKE_CPUS 个 CPU 目录..."
+        for i in $(seq 0 $((FAKE_CPUS-1))); do
+            mkdir -p "$CPU_SYS/cpu$i/topology"
+            echo "$i" > "$CPU_SYS/cpu$i/topology/core_id"
+            echo 0 > "$CPU_SYS/cpu$i/topology/physical_package_id"
+            echo 1 > "$CPU_SYS/cpu$i/topology/thread_siblings"
+            echo "$i" > "$CPU_SYS/cpu$i/topology/core_siblings_list"
+        done
+
+        # 4) 生成控制文件
+        echo "0-$((FAKE_CPUS-1))" > "$CPU_SYS/online"
+        echo "0-$((FAKE_CPUS-1))" > "$CPU_SYS/possible"
+        echo "0-$((FAKE_CPUS-1))" > "$CPU_SYS/present"
+        echo "$((FAKE_CPUS-1))" > "$CPU_SYS/kernel_max"
+
+        # 5) 创建一些常见的目录避免工具报错
+        mkdir -p "$CPU_SYS/cpufreq"
+        mkdir -p "$CPU_SYS/cpuidle"
+        mkdir -p "$CPU_SYS/hotplug"
+        mkdir -p "$CPU_SYS/power"
+
+        # 6) 设置权限
+        chmod 644 "$CPU_SYS"/{online,possible,present,kernel_max}
+
+        log_success "CPU 目录伪装完成 ($FAKE_CPUS 核心)"
+    else
+        log_error "tmpfs 挂载失败"
+        return 1
+    fi
+}
+
 # 执行 OverlayFS 挂载
 mount_overlay_proc() {
     log_step "挂载 OverlayFS 覆盖 /proc..."
@@ -167,6 +225,26 @@ verify_fake_hardware() {
         log_success "/proc/cpuinfo 伪装成功: $proc_cpu_count 核心"
     else
         log_warning "/proc/cpuinfo 伪装可能失败: $proc_cpu_count 核心"
+        ((errors++))
+    fi
+
+    # 检查 lscpu
+    if command -v lscpu &> /dev/null; then
+        local lscpu_cores=$(lscpu | grep "^CPU(s):" | awk '{print $2}' 2>/dev/null || echo "0")
+        if [[ "$lscpu_cores" == "24" ]]; then
+            log_success "lscpu 伪装成功: $lscpu_cores 核心"
+        else
+            log_warning "lscpu 伪装可能失败: $lscpu_cores 核心"
+            ((errors++))
+        fi
+    fi
+
+    # 检查 /sys/devices/system/cpu
+    local sys_cpu_count=$(ls /sys/devices/system/cpu/cpu* 2>/dev/null | grep -c "cpu[0-9]" || echo "0")
+    if [[ "$sys_cpu_count" == "24" ]]; then
+        log_success "/sys CPU 目录伪装成功: $sys_cpu_count 个目录"
+    else
+        log_warning "/sys CPU 目录伪装可能失败: $sys_cpu_count 个目录"
         ((errors++))
     fi
     
@@ -239,6 +317,126 @@ show_test_commands() {
     echo ""
 }
 
+# 创建伪装的 lscpu 命令
+create_fake_lscpu() {
+    log_step "创建伪装的 lscpu 命令..."
+
+    # 备份原始 lscpu
+    if [ -f /usr/bin/lscpu ] && [ ! -f /usr/bin/lscpu_real ]; then
+        mv /usr/bin/lscpu /usr/bin/lscpu_real
+    fi
+
+    # 创建伪装的 lscpu
+    cat > /usr/bin/lscpu << 'EOF'
+#!/bin/bash
+echo "Architecture:        x86_64"
+echo "CPU op-mode(s):      32-bit, 64-bit"
+echo "Byte Order:          Little Endian"
+echo "Address sizes:       48 bits physical, 48 bits virtual"
+echo "CPU(s):              24"
+echo "On-line CPU(s) list: 0-23"
+echo "Thread(s) per core:  1"
+echo "Core(s) per socket:  24"
+echo "Socket(s):           1"
+echo "NUMA node(s):        1"
+echo "Vendor ID:           GenuineIntel"
+echo "CPU family:          6"
+echo "Model:               106"
+echo "Model name:          Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz"
+echo "Stepping:            6"
+echo "CPU MHz:             2900.000"
+echo "BogoMIPS:            5800.00"
+echo "Hypervisor vendor:   Microsoft"
+echo "Virtualization type: full"
+echo "L1d cache:           1.5 MiB"
+echo "L1i cache:           1 MiB"
+echo "L2 cache:            30 MiB"
+echo "L3 cache:            54 MiB"
+echo "NUMA node0 CPU(s):   0-23"
+EOF
+
+    chmod +x /usr/bin/lscpu
+    log_success "伪装 lscpu 命令创建完成"
+}
+
+# 应用 /proc 文件伪装
+apply_proc_fake() {
+    log_step "应用 /proc 文件伪装..."
+
+    # 应用 /proc/meminfo 伪装
+    if [ -f "/opt/fakeproc/overlay/upper/meminfo" ]; then
+        mount --bind /opt/fakeproc/overlay/upper/meminfo /proc/meminfo 2>/dev/null || true
+        log_success "/proc/meminfo 伪装已应用"
+    fi
+
+    # 应用 /proc/cpuinfo 伪装
+    if [ -f "/opt/fakeproc/overlay/upper/cpuinfo" ]; then
+        mount --bind /opt/fakeproc/overlay/upper/cpuinfo /proc/cpuinfo 2>/dev/null || true
+        log_success "/proc/cpuinfo 伪装已应用"
+    fi
+
+    # 应用其他 /proc 文件伪装
+    for file in stat version loadavg; do
+        if [ -f "/opt/fakeproc/overlay/upper/$file" ]; then
+            mount --bind "/opt/fakeproc/overlay/upper/$file" "/proc/$file" 2>/dev/null || true
+        fi
+    done
+
+    log_success "/proc 文件伪装应用完成"
+}
+
+# 清理所有硬件伪装痕迹
+cleanup_traces() {
+    log_step "清理硬件伪装痕迹..."
+
+    # 创建一个彻底的清理脚本
+    cat > /tmp/cleanup_final.sh << 'EOF'
+#!/bin/bash
+# 等待主进程完成
+sleep 5
+
+# 强制删除所有伪装文件（确保伪装已完成）
+# 注意：libfakehw.so 需要保留用于 LD_PRELOAD，不能删除
+rm -f /opt/libfakehw.c 2>/dev/null || true
+rm -f /opt/generate_fake_files.sh 2>/dev/null || true
+rm -f /opt/drop_capabilities.sh 2>/dev/null || true
+rm -f /opt/hardware_fake_entrypoint.sh 2>/dev/null || true
+
+# 不删除编译产物，因为 LD_PRELOAD 需要它
+# rm -f /usr/local/lib/libfakehw.so 2>/dev/null || true
+
+# 清理编译临时文件
+rm -f /tmp/libfakehw.* 2>/dev/null || true
+
+# 清理日志和临时文件
+rm -f /tmp/hardware_fake_*.log 2>/dev/null || true
+
+# 隐藏 lscpu 替换痕迹
+rm -f /usr/bin/lscpu_real 2>/dev/null || true
+
+# 不清理 LD_PRELOAD 配置，因为 nproc 伪装需要它
+# rm -f /etc/ld.so.preload 2>/dev/null || true
+
+# 尝试删除 fakeproc 目录（多次尝试）
+for i in {1..10}; do
+    if rm -rf /opt/fakeproc 2>/dev/null; then
+        break
+    fi
+    sleep 1
+done
+
+# 最后删除自己
+rm -f /tmp/cleanup_final.sh 2>/dev/null || true
+EOF
+
+    chmod +x /tmp/cleanup_final.sh
+
+    # 在后台运行清理脚本
+    nohup /tmp/cleanup_final.sh >/dev/null 2>&1 &
+
+    log_success "硬件伪装痕迹清理已启动"
+}
+
 # 主函数
 main() {
     log_info "=== 硬件伪装启动脚本 ==="
@@ -253,11 +451,25 @@ main() {
         generate_fake_data
         build_and_install_libfakehw
         setup_ld_preload
-        mount_overlay_proc
+        mount_tmpfs_cpu
+
+        # 尝试 OverlayFS，失败时继续执行
+        mount_overlay_proc || log_warning "OverlayFS 挂载失败，继续使用 bind mount"
+
+        # 创建伪装的 lscpu 命令
+        create_fake_lscpu
+
+        # 应用 /proc 文件伪装
+        apply_proc_fake
+
         verify_fake_hardware
         drop_capabilities
         show_fake_info
-        show_test_commands
+
+        # 清理所有痕迹（保持伪装效果）
+        cleanup_traces
+
+        log_success "硬件伪装已隐蔽部署完成"
     else
         log_error "硬件伪装启动失败：权限不足"
         return 1
