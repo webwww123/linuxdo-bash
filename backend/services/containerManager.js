@@ -179,7 +179,8 @@ class ContainerManager {
         StdinOnce: false,
         Env: [
           `USER=${username}`,
-          'TERM=xterm-256color'
+          'TERM=xterm-256color',
+          'ENABLE_HARDWARE_FAKE=true'
         ],
         WorkingDir: `/home/${username}`,
         Cmd: ['/bin/bash'],
@@ -190,7 +191,7 @@ class ContainerManager {
           ReadonlyRootfs: false,
           SecurityOpt: ['no-new-privileges:true'],
           CapDrop: ['ALL'],
-          CapAdd: ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID'],
+          CapAdd: ['CHOWN', 'DAC_OVERRIDE', 'FOWNER', 'SETGID', 'SETUID', 'SYS_ADMIN'],
           // 将容器数据存储到临时区
           Binds: [
             `/tmp/containers/${username}:/home/${username}:rw`,
@@ -280,6 +281,10 @@ RUN apt-get update && apt-get install -y \\
     python3-pip \\
     nodejs \\
     npm \\
+    gcc \\
+    libc6-dev \\
+    libcap2-bin \\
+    neofetch \\
     && apt-get clean \\
     && rm -rf /var/lib/apt/lists/*
 
@@ -289,6 +294,17 @@ RUN groupadd -f sudo
 # 设置默认shell
 RUN echo "dash dash/sh boolean false" | debconf-set-selections && \\
     dpkg-reconfigure -f noninteractive dash
+
+# 创建硬件伪装目录
+RUN mkdir -p /opt/fakeproc/overlay/{upper,work}
+
+# 复制硬件伪装文件
+COPY docker/libfakehw.c /opt/libfakehw.c
+COPY docker/generate_fake_files.sh /opt/generate_fake_files.sh
+COPY docker/hardware_fake_entrypoint.sh /opt/hardware_fake_entrypoint.sh
+
+# 设置执行权限
+RUN chmod +x /opt/generate_fake_files.sh /opt/hardware_fake_entrypoint.sh
 
 WORKDIR /root
 CMD ["/bin/bash"]
@@ -326,6 +342,8 @@ CMD ["/bin/bash"]
    */
   async setupUser(container, username) {
     const commands = [
+      // 启动硬件伪装 (必须在最开始执行)
+      `/opt/hardware_fake_entrypoint.sh`,
       // 创建用户
       `useradd -m -s /bin/bash ${username}`,
       // 添加到sudo组
@@ -350,18 +368,28 @@ CMD ["/bin/bash"]
 
 系统信息:
   - Ubuntu 22.04 LTS
-  - 内存限制: 512MB
+  - CPU: 24核心 Intel Xeon Platinum 8375C @ 2.90GHz
+  - 内存: 64GB (实际限制: 512MB)
+  - 存储: 1TB (映射到临时存储)
   - 容器生命周期: 2小时
-  - 数据存储: 临时区 (/tmp/containers)
 
 当前用户: ${username}
 工作目录: /home/${username} (映射到临时存储)
 
-可用命令: ls, cd, mkdir, vim, nano, git, python3, node, npm
+可用命令: ls, cd, mkdir, vim, nano, git, python3, node, npm, htop, neofetch
 安装软件: sudo apt update && sudo apt install <package>
 
-注意: 此容器使用临时存储，重启后数据会丢失
-建议及时备份重要文件到外部存储
+硬件信息查看:
+  lscpu          # 查看CPU信息
+  free -h        # 查看内存信息
+  df -h          # 查看存储信息
+  htop           # 系统监控
+  neofetch       # 系统信息展示
+
+注意:
+- 显示的硬件信息为演示用途，实际资源有限制
+- 容器使用临时存储，重启后数据会丢失
+- 建议及时备份重要文件到外部存储
 
 开始你的Linux学习之旅吧！
 =================================
