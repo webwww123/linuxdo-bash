@@ -35,6 +35,7 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [userAvatars, setUserAvatars] = useState({});
   const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -132,6 +133,36 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
   };
 
   const handleKeyDown = (e) => {
+    // 处理@用户列表的键盘导航
+    if (showMentionList && filteredUsers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev =>
+          prev < filteredUsers.length - 1 ? prev + 1 : 0
+        );
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev =>
+          prev > 0 ? prev - 1 : filteredUsers.length - 1
+        );
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        selectMention(filteredUsers[selectedMentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionList(false);
+        setMentionFilter('');
+        setSelectedMentionIndex(0);
+        return;
+      }
+    }
+
     // Shift+Enter 换行
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
@@ -178,9 +209,11 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
     if (atMatch) {
       setMentionFilter(atMatch[1]);
       setShowMentionList(true);
+      setSelectedMentionIndex(0); // 重置选中索引
     } else {
       setShowMentionList(false);
       setMentionFilter('');
+      setSelectedMentionIndex(0);
     }
   };
 
@@ -247,16 +280,15 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
       const result = await response.json();
       console.log('图片上传结果:', result);
       if (result.success) {
-        // 构建完整的图片URL - 指向后端服务器
-        const backendUrl = 'http://localhost:3001';
-        const fullImageUrl = backendUrl + result.imageUrl;
-        console.log('发送图片消息:', { imageUrl: fullImageUrl });
+        // 使用相对路径，通过Nginx代理访问
+        const imageUrl = result.imageUrl; // 已经是 /uploads/filename 格式
+        console.log('发送图片消息:', { imageUrl });
 
         // 发送图片消息
         onSendMessage({
           message: '',
           messageType: 'image',
-          imageUrl: fullImageUrl
+          imageUrl: imageUrl
         });
       } else {
         alert('图片上传失败: ' + result.error);
@@ -282,6 +314,7 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
       setInputMessage(newText);
       setShowMentionList(false);
       setMentionFilter('');
+      setSelectedMentionIndex(0);
 
       // 设置光标位置
       setTimeout(() => {
@@ -438,10 +471,23 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
                       {message.messageType === 'image' ? (
                         <div className="space-y-2">
                           <img
-                            src={message.imageUrl}
+                            src={(() => {
+                              // 处理图片URL：如果是完整URL，转换为相对路径
+                              let imageUrl = message.imageUrl;
+                              if (imageUrl && imageUrl.startsWith('http://localhost:3001/')) {
+                                imageUrl = imageUrl.replace('http://localhost:3001', '');
+                              }
+                              return imageUrl;
+                            })()}
                             alt="聊天图片"
                             className="max-w-xs max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(message.imageUrl, '_blank')}
+                            onClick={() => {
+                              let imageUrl = message.imageUrl;
+                              if (imageUrl && imageUrl.startsWith('http://localhost:3001/')) {
+                                imageUrl = imageUrl.replace('http://localhost:3001', '');
+                              }
+                              window.open(imageUrl, '_blank');
+                            }}
                             onError={(e) => {
                               console.error('图片加载失败:', message.imageUrl);
                               e.target.style.display = 'none';
@@ -570,12 +616,16 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
               选择用户
             </div>
             <div className="overflow-y-auto max-h-40">
-              {filteredUsers.map((user) => (
+              {filteredUsers.map((user, index) => (
                 <button
                   key={user}
                   type="button"
                   onClick={() => selectMention(user)}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                  className={`w-full px-3 py-2 text-left transition-colors flex items-center space-x-2 ${
+                    index === selectedMentionIndex
+                      ? 'bg-blue-100 dark:bg-blue-900'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
                 >
                   <div className={`w-6 h-6 ${getUserAvatarColor(user, userAvatars[user])} text-white rounded-full flex items-center justify-center text-xs font-medium`}>
                     {getUserInitial(user, userAvatars[user])}
