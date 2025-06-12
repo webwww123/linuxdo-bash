@@ -69,22 +69,8 @@ const UserList = ({ users, currentUsername, socket }) => {
   };
 
   const formatTimeRemaining = (createdAt) => {
-    const now = Date.now();
-    const elapsed = now - createdAt;
-    const remaining = (2 * 60 * 60 * 1000) - elapsed; // 2小时 - 已用时间
-
-    if (remaining <= 0) {
-      return '即将过期';
-    }
-
-    const minutes = Math.floor(remaining / (1000 * 60));
-    const hours = Math.floor(minutes / 60);
-
-    if (hours > 0) {
-      return `${hours}h ${minutes % 60}m 后过期`;
-    } else {
-      return `${minutes}m 后过期`;
-    }
+    // 现在显示的是不活动时间提示，而不是固定过期时间
+    return '20分钟无活动后清理';
   };
 
   // 重置容器
@@ -272,7 +258,7 @@ const UserList = ({ users, currentUsername, socket }) => {
       <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
         <div className="flex justify-between items-center">
           <span>总计 {displayUsers.length} 个活跃容器</span>
-          <span>自动清理: 2小时</span>
+          <span>自动清理: 20分钟无活动</span>
         </div>
       </div>
 

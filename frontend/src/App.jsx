@@ -352,7 +352,7 @@ function App() {
             <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
               <p>🐳 每个用户独立容器</p>
               <p>🛡️ 完全安全隔离</p>
-              <p>⏰ 2小时自动清理</p>
+              <p>⏰ 20分钟无活动自动清理</p>
             </div>
           </div>
         </div>
