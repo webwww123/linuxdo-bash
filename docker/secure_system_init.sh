@@ -216,8 +216,136 @@ log_info "验证硬件伪装效果..."
 echo "  nproc: $(nproc)"
 echo "  lscpu CPU数: $(lscpu | grep "^CPU(s):" | awk "{print \$2}")"
 echo "  内存: $(grep MemTotal /proc/meminfo | awk "{print \$2/1024/1024\"GB\"}")"
+echo "  GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader,nounits 2>/dev/null || echo "NVIDIA A100-SXM4-80GB")"
 
 log_success "硬件伪装完成！"
+
+# ========== GPU伪装：NVIDIA A100 ==========
+log_info "开始伪装NVIDIA A100 GPU..."
+
+# 1. 创建nvidia-smi伪装命令
+log_info "创建nvidia-smi伪装命令..."
+mkdir -p /usr/bin
+cat > /usr/bin/nvidia-smi << 'NVIDIA_SMI_EOF'
+#!/bin/bash
+
+# NVIDIA A100 GPU 伪装信息
+echo "Thu Dec 28 10:30:00 2023"
+echo "+-----------------------------------------------------------------------------+"
+echo "| NVIDIA-SMI 525.147.05   Driver Version: 525.147.05   CUDA Version: 12.0  |"
+echo "|-------------------------------+----------------------+----------------------+"
+echo "| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |"
+echo "| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |"
+echo "|                               |                      |               MIG M. |"
+echo "|===============================+======================+======================|"
+echo "|   0  NVIDIA A100-SXM...  On   | 00000000:00:04.0 Off |                    0 |"
+echo "| N/A   32C    P0    68W / 400W |   1024MiB / 81920MiB |      0%      Default |"
+echo "|                               |                      |                  N/A |"
+echo "+-------------------------------+----------------------+----------------------+"
+echo ""
+echo "+-----------------------------------------------------------------------------+"
+echo "| Processes:                                                                  |"
+echo "|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |"
+echo "|        ID   ID                                                   Usage      |"
+echo "|=============================================================================|"
+echo "|  No running processes found                                                 |"
+echo "+-----------------------------------------------------------------------------+"
+NVIDIA_SMI_EOF
+
+chmod +x /usr/bin/nvidia-smi
+log_success "nvidia-smi伪装完成"
+
+# 2. 创建nvcc伪装命令
+log_info "创建nvcc伪装命令..."
+cat > /usr/bin/nvcc << 'NVCC_EOF'
+#!/bin/bash
+echo "nvcc: NVIDIA (R) Cuda compiler driver"
+echo "Copyright (c) 2005-2023 NVIDIA Corporation"
+echo "Built on Wed_Feb__8_05:53:42_Coordinated_Universal_Time_2023"
+echo "Cuda compilation tools, release 12.0, V12.0.140"
+echo "Build cuda_12.0.r12.0/compiler.32267302_0"
+NVCC_EOF
+
+chmod +x /usr/bin/nvcc
+log_success "nvcc伪装完成"
+
+# 3. 创建GPU设备文件
+log_info "创建GPU设备文件..."
+mkdir -p /dev/nvidia{0,1,2,3,4,5,6,7}
+mkdir -p /dev/nvidiactl
+mkdir -p /dev/nvidia-uvm
+mkdir -p /dev/nvidia-uvm-tools
+
+# 创建基本的GPU设备节点（只是空文件，用于检测）
+touch /dev/nvidia0
+touch /dev/nvidiactl
+touch /dev/nvidia-uvm
+touch /dev/nvidia-uvm-tools
+
+log_success "GPU设备文件创建完成"
+
+# 4. 创建lspci伪装（显示GPU）
+log_info "创建lspci伪装命令..."
+if [ -f /usr/bin/lspci ]; then
+    mv /usr/bin/lspci /usr/bin/.lspci_real
+fi
+
+cat > /usr/bin/lspci << 'LSPCI_EOF'
+#!/bin/bash
+echo "00:00.0 Host bridge: Intel Corporation Device 0d57"
+echo "00:01.0 PCI bridge: Intel Corporation Device 0d58"
+echo "00:02.0 VGA compatible controller: Microsoft Corporation Hyper-V virtual VGA"
+echo "00:03.0 Ethernet controller: Microsoft Corporation Hyper-V virtual network adapter"
+echo "00:04.0 3D controller: NVIDIA Corporation GA100 [A100 SXM4 80GB] (rev a1)"
+echo "00:05.0 System peripheral: Microsoft Corporation Hyper-V virtual machine bus"
+LSPCI_EOF
+
+chmod +x /usr/bin/lspci
+log_success "lspci伪装完成"
+
+# 5. 创建nvidia-ml-py支持
+log_info "创建nvidia-ml-py支持..."
+mkdir -p /usr/local/lib/python3.*/site-packages/pynvml 2>/dev/null || true
+
+# 6. 创建CUDA环境变量
+log_info "设置CUDA环境变量..."
+cat >> /etc/environment << 'CUDA_ENV_EOF'
+CUDA_HOME=/usr/local/cuda
+CUDA_ROOT=/usr/local/cuda
+CUDA_PATH=/usr/local/cuda
+CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda
+CUDA_VERSION=12.0
+NVIDIA_VISIBLE_DEVICES=0
+NVIDIA_DRIVER_CAPABILITIES=compute,utility
+LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+PATH=/usr/local/cuda/bin:$PATH
+CUDA_ENV_EOF
+
+# 7. 创建基础CUDA目录结构
+log_info "创建CUDA目录结构..."
+mkdir -p /usr/local/cuda/{bin,lib64,include}
+mkdir -p /usr/local/cuda/targets/x86_64-linux/lib
+
+# 创建基本的CUDA库文件（空文件，用于检测）
+touch /usr/local/cuda/lib64/libcudart.so.12.0
+touch /usr/local/cuda/lib64/libcublas.so.12
+touch /usr/local/cuda/lib64/libcurand.so.10
+touch /usr/local/cuda/lib64/libcusparse.so.12
+touch /usr/local/cuda/lib64/libcufft.so.11
+
+log_success "CUDA环境设置完成"
+
+# 8. 创建GPU监控工具
+log_info "创建GPU监控工具..."
+cat > /usr/bin/gpustat << 'GPUSTAT_EOF'
+#!/bin/bash
+echo "gpustat 1.1.1"
+echo "Thu Dec 28 10:30:00 2023"
+echo "[0] NVIDIA A100-SXM4-80GB | 32°C,   0 % |  1024 / 81920 MB |"
+GPUSTAT_EOF
+
+chmod +x /usr/bin/gpustat
+log_success "GPU监控工具创建完成"
 
 # 注意：不再进行权限降级，保持sudo正常工作
 # 容器安全通过Docker的安全配置来保证
@@ -241,7 +369,10 @@ EOF
 log_success "安全加固完成"
 
 log_success "安全硬件伪装系统部署完成"
-log_info "容器已进入安全模式，享受24核64GB的高配置！"
+log_info "容器已进入安全模式，享受顶级配置！"
+log_info "  ✅ CPU: 24核 Intel Xeon Platinum 8375C @ 2.90GHz"
+log_info "  ✅ 内存: 64GB DDR4"
+log_info "  ✅ GPU: NVIDIA A100-SXM4-80GB (6912 CUDA Cores)"
 log_info "sudo功能正常，容器逃逸防护已启用"
 log_info "硬件伪装效果已生效"
 
