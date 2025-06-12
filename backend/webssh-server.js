@@ -9,6 +9,7 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
+  path: '/webssh/socket.io',   // 自定义路径，避免与主API冲突
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
@@ -71,7 +72,10 @@ const sshHandler = (req, res) => {
     <body>
         <div id="terminal"></div>
         <script>
-            const socket = io();
+            const socket = io({
+                path: '/webssh/socket.io',
+                transports: ['websocket', 'polling']
+            });
             const terminal = new Terminal({
                 fontSize: 14,
                 fontFamily: 'monospace',
@@ -249,14 +253,16 @@ io.on('connection', (socket) => {
   console.log('WebSSH client connected');
 
   socket.on('create-terminal', ({ username }) => {
-    console.log('Creating terminal for user:', username);
+    console.log('[WebSSH] Creating terminal for user:', username);
 
     try {
       // 直接连接到容器
       const containerName = `linux-${username}`;
 
       const terminal = pty.spawn('docker', [
-        'exec', '-it', containerName, '/bin/bash'
+        'exec', '-i', '-e', 'TERM=xterm-256color', '-e', 'PS1=\\u@\\h:\\w\\$ ',
+        '-e', 'BASH_ENV=/etc/bash.bashrc',
+        containerName, '/bin/bash', '-li'
       ], {
         name: 'xterm-256color',
         cols: 80,
@@ -275,6 +281,7 @@ io.on('connection', (socket) => {
 
       // 发送终端输出到客户端
       terminal.on('data', (data) => {
+        console.log('[WebSSH] Terminal output:', JSON.stringify(data.slice(0, 100)));
         // 发送给当前用户
         socket.emit('terminal-output', data);
 
@@ -294,10 +301,21 @@ io.on('connection', (socket) => {
         delete userTerminals[username];
       });
 
-      // 清理终端显示
+      // 发送初始命令来触发bash提示符和设置环境
       setTimeout(() => {
-        terminal.write('clear\\n');
+        // 强制设置交互环境
+        terminal.write('set +h\n'); // 禁用hash
+        terminal.write('export PS1="\\u@\\h:\\w\\$ "\n'); // 设置提示符
+        terminal.write('export TERM=xterm-256color\n'); // 设置终端类型
+      }, 500);
+
+      setTimeout(() => {
+        terminal.write('clear\n'); // 清屏
       }, 1000);
+
+      setTimeout(() => {
+        terminal.write('\n'); // 发送回车符触发提示符
+      }, 1500);
 
     } catch (error) {
       console.error('Failed to create terminal:', error);
@@ -306,9 +324,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('terminal-input', (data) => {
+    console.log('[WebSSH] Terminal input:', JSON.stringify(data));
     const terminal = terminals[socket.id];
     if (terminal) {
       terminal.write(data);
+    } else {
+      console.log('[WebSSH] No terminal found for socket:', socket.id);
     }
   });
 

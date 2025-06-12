@@ -29,6 +29,8 @@ services:
       - PORT=3002
     expose:
       - "3002"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # 挂载Docker socket
     restart: unless-stopped
 
   grafana:

@@ -1,7 +1,7 @@
 FROM node:18-alpine
 
-# 安装Python和构建工具（node-pty需要）
-RUN apk add --no-cache python3 python3-dev py3-setuptools make g++
+# 安装Python和构建工具（node-pty需要）以及Docker客户端
+RUN apk add --no-cache python3 python3-dev py3-setuptools make g++ docker-cli
 
 WORKDIR /app
 
