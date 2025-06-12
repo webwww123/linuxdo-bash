@@ -407,8 +407,10 @@ io.on('connection', (socket) => {
 
   // 处理来自WebSSH服务器的终端输出广播
   socket.on('broadcast-terminal-output', (data) => {
+    console.log('[API] Received broadcast-terminal-output for user:', data.username, 'data length:', data.data.length);
     // 广播给所有其他用户（除了发送者）
     socket.broadcast.emit('user-terminal-output', data);
+    console.log('[API] Broadcasted user-terminal-output to other users');
   });
 
   // 获取在线用户列表

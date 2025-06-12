@@ -25,7 +25,7 @@ const terminals = {};
 const userTerminals = {}; // 存储用户名到终端的映射
 
 // 连接到主API服务器，用于广播终端输出
-const mainServerSocket = ioClient('http://localhost:3001');
+const mainServerSocket = ioClient('http://backend:3001');
 
 mainServerSocket.on('connect', () => {
   console.log('WebSSH服务器已连接到主API服务器');
@@ -287,10 +287,13 @@ io.on('connection', (socket) => {
 
         // 广播给其他用户观看（通过主API服务器）
         if (mainServerSocket.connected) {
+          console.log('[WebSSH] Broadcasting terminal output for user:', username, 'data length:', data.length);
           mainServerSocket.emit('broadcast-terminal-output', {
             username: username,
             data: data
           });
+        } else {
+          console.log('[WebSSH] Main server socket not connected, cannot broadcast');
         }
       });
 
