@@ -192,12 +192,36 @@ class ContainerManager {
           CpuShares: 512, // CPU限制
           NetworkMode: 'bridge',
           ReadonlyRootfs: false,
-          // 调整安全配置以支持sudo正常工作
+          // 平衡安全配置，允许sudo但防止容器逃逸
           SecurityOpt: [
-            'no-new-privileges:false'  // 临时允许权限提升以支持sudo
+            'no-new-privileges:false',  // 允许sudo权限提升
+            'apparmor:docker-default',  // 启用AppArmor
+            `seccomp=${require('path').resolve(__dirname, '../../docker/seccomp-secure.json')}`  // 自定义seccomp配置
           ],
-          CapDrop: ['NET_ADMIN', 'NET_RAW', 'SYS_MODULE', 'SYS_RAWIO', 'SYS_PTRACE'],  // 只移除危险权限
-          CapAdd: ['SYS_ADMIN', 'SETPCAP', 'SETUID', 'SETGID', 'DAC_OVERRIDE'],        // 添加sudo必需的权限
+          // 更严格的权限控制
+          CapDrop: ['ALL'],  // 移除所有权限
+          CapAdd: ['SETUID', 'SETGID', 'DAC_OVERRIDE', 'CHOWN', 'FOWNER'],  // 只添加sudo必需的最小权限
+          // 屏蔽敏感路径
+          MaskedPaths: [
+            '/proc/acpi',
+            '/proc/kcore',
+            '/proc/keys',
+            '/proc/latency_stats',
+            '/proc/timer_list',
+            '/proc/timer_stats',
+            '/proc/sched_debug',
+            '/proc/scsi',
+            '/sys/firmware',
+            '/sys/fs/cgroup'
+          ],
+          ReadonlyPaths: [
+            '/proc/asound',
+            '/proc/bus',
+            '/proc/fs',
+            '/proc/irq',
+            '/proc/sys',
+            '/proc/sysrq-trigger'
+          ],
           // 将容器数据存储到临时区
           Binds: [
             `/tmp/containers/${username}:/home/${username}:rw`,
@@ -301,8 +325,10 @@ class ContainerManager {
       `useradd -m -s /bin/bash ${username}`,
       // 添加到sudo组
       `usermod -aG sudo ${username}`,
-      // 设置无密码sudo
-      `echo "${username} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers`,
+      // 设置安全的sudo配置
+      `echo "${username} ALL=(ALL) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /usr/bin/dpkg, /usr/bin/snap, /usr/bin/pip, /usr/bin/pip3, /usr/bin/npm, /usr/bin/yarn, /usr/bin/systemctl, /usr/bin/service, /usr/bin/mkdir, /usr/bin/chmod, /usr/bin/chown, /usr/bin/cp, /usr/bin/mv, /usr/bin/rm, /usr/bin/ln, /usr/bin/touch, /usr/bin/cat, /usr/bin/tee, /usr/bin/whoami" >> /etc/sudoers`,
+      // 禁止危险的sudo命令
+      `echo "${username} ALL=(ALL) !NOPASSWD: /usr/bin/su, /bin/su, /usr/bin/sudo, /bin/sudo, /usr/bin/passwd, /bin/passwd, /usr/sbin/visudo, /usr/bin/chroot, /bin/chroot, /usr/bin/mount, /bin/mount, /usr/bin/umount, /bin/umount" >> /etc/sudoers`,
       // 设置用户目录权限
       `chown -R ${username}:${username} /home/${username}`,
       // 禁用bash超时和设置会话保持

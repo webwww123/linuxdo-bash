@@ -1,0 +1,71 @@
+{
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "archMap": [
+    {
+      "architecture": "SCMP_ARCH_X86_64",
+      "subArchitectures": [
+        "SCMP_ARCH_X86",
+        "SCMP_ARCH_X32"
+      ]
+    }
+  ],
+  "syscalls": [
+    {
+      "names": [
+        "unshare",
+        "mount",
+        "umount",
+        "umount2", 
+        "pivot_root",
+        "chroot",
+        "kexec_load",
+        "kexec_file_load",
+        "perf_event_open",
+        "ptrace",
+        "process_vm_readv",
+        "process_vm_writev",
+        "clone3",
+        "bpf",
+        "finit_module",
+        "init_module",
+        "delete_module",
+        "reboot",
+        "swapon",
+        "swapoff",
+        "syslog",
+        "acct",
+        "settimeofday",
+        "stime",
+        "adjtimex",
+        "clock_adjtime",
+        "lookup_dcookie",
+        "quotactl",
+        "nfsservctl",
+        "afs_syscall",
+        "tuxcall",
+        "security",
+        "vserver",
+        "modify_ldt",
+        "ioperm",
+        "iopl",
+        "vm86",
+        "vm86old"
+      ],
+      "action": "SCMP_ACT_KILL",
+      "comment": "Block dangerous syscalls for container escape prevention"
+    },
+    {
+      "names": [
+        "chmod",
+        "fchmod",
+        "fchmodat",
+        "chown",
+        "fchown",
+        "lchown",
+        "fchownat"
+      ],
+      "action": "SCMP_ACT_ALLOW",
+      "comment": "Allow file permission changes for sudo functionality"
+    }
+  ]
+}
