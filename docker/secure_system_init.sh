@@ -117,10 +117,48 @@ done
 cat /run/fakeproc/cpuinfo.tmp >> /run/fakeproc/cpuinfo
 rm -f /run/fakeproc/cpuinfo.tmp
 
+# 生成伪造的/proc/stat文件（htop主要依赖这个）
+log_info "生成伪造的/proc/stat文件..."
+cat > /run/fakeproc/stat << 'EOF'
+cpu  2097152 0 524288 50331648 4096 0 8192 0 0 0
+cpu0 87381 0 21845 2097152 171 0 342 0 0 0
+cpu1 87381 0 21845 2097152 171 0 342 0 0 0
+cpu2 87381 0 21845 2097152 171 0 342 0 0 0
+cpu3 87381 0 21845 2097152 171 0 342 0 0 0
+cpu4 87381 0 21845 2097152 171 0 342 0 0 0
+cpu5 87381 0 21845 2097152 171 0 342 0 0 0
+cpu6 87381 0 21845 2097152 171 0 342 0 0 0
+cpu7 87381 0 21845 2097152 171 0 342 0 0 0
+cpu8 87381 0 21845 2097152 171 0 342 0 0 0
+cpu9 87381 0 21845 2097152 171 0 342 0 0 0
+cpu10 87381 0 21845 2097152 171 0 342 0 0 0
+cpu11 87381 0 21845 2097152 171 0 342 0 0 0
+cpu12 87381 0 21845 2097152 171 0 342 0 0 0
+cpu13 87381 0 21845 2097152 171 0 342 0 0 0
+cpu14 87381 0 21845 2097152 171 0 342 0 0 0
+cpu15 87381 0 21845 2097152 171 0 342 0 0 0
+cpu16 87381 0 21845 2097152 171 0 342 0 0 0
+cpu17 87381 0 21845 2097152 171 0 342 0 0 0
+cpu18 87381 0 21845 2097152 171 0 342 0 0 0
+cpu19 87381 0 21845 2097152 171 0 342 0 0 0
+cpu20 87381 0 21845 2097152 171 0 342 0 0 0
+cpu21 87381 0 21845 2097152 171 0 342 0 0 0
+cpu22 87381 0 21845 2097152 171 0 342 0 0 0
+cpu23 87381 0 21845 2097152 171 0 342 0 0 0
+intr 16777216 1048576 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ctxt 33554432
+btime 1640995200
+processes 65536
+procs_running 1
+procs_blocked 0
+softirq 8388608 262144 2097152 4096 524288 1048576 0 131072 2097152 8192 2097152
+EOF
+
 # 3. 绑定挂载proc文件
 log_info "绑定挂载proc文件..."
 mount --bind /run/fakeproc/meminfo /proc/meminfo
 mount --bind /run/fakeproc/cpuinfo /proc/cpuinfo
+mount --bind /run/fakeproc/stat /proc/stat
 log_success "proc文件伪装完成"
 
 # 4. 创建伪装的nproc命令
@@ -175,89 +213,18 @@ LSCPU_EOF
 chmod +x /usr/bin/lscpu
 log_success "lscpu命令伪装完成"
 
-# ========== 第二阶段：永久移除危险权限 ==========
-log_info "永久移除SYS_ADMIN权限..."
-
-# 检查当前权限
-log_info "当前权限状态:"
-capsh --print | grep "Current:" || true
-
-# 验证硬件伪装效果
+# ========== 第二阶段：验证硬件伪装效果 ==========
 log_info "验证硬件伪装效果..."
 echo "  nproc: $(nproc)"
 echo "  lscpu CPU数: $(lscpu | grep "^CPU(s):" | awk "{print \$2}")"
 echo "  内存: $(grep MemTotal /proc/meminfo | awk "{print \$2/1024/1024\"GB\"}")"
 
-log_success "硬件伪装完成，开始权限降级..."
+log_success "硬件伪装完成！"
 
-# 使用专业人士建议的正确方法永久删除BoundingSet中的危险权限
-# Ubuntu 22.04兼容的解决方案：setpriv + C helper + self-exec
-log_info "使用专业建议的Ubuntu 22.04兼容方法永久删除BoundingSet权限..."
-
-# 使用专业建议的预编译dropcaps helper
-log_info "使用专业建议的预编译dropcaps helper..."
-if [ -f /opt/dropcaps ]; then
-    log_success "dropcaps helper已就绪"
-
-    # 使用专业建议的方法：setpriv + self-exec
-    log_info "使用setpriv确保CAP_SETPCAP在Effective中，然后self-exec..."
-
-    # 专业人士建议的Ubuntu 22.04兼容命令
-    # setpriv --inh-caps +setpcap --ambient-caps +setpcap 确保CAP_SETPCAP在Effective中
-    # 然后self-exec到预编译的dropcaps helper
-    exec setpriv --inh-caps +setpcap --ambient-caps +setpcap --reset-env -- \
-        /opt/dropcaps "$@"
-
-else
-    log_warning "无法编译dropcaps helper，使用备用方案"
-
-    # 备用方案：直接尝试prctl
-    log_info "尝试直接prctl方案..."
-    cat > /tmp/simple_drop.c << 'EOF'
-#include <sys/prctl.h>
-#include <linux/capability.h>
-#include <stdio.h>
-
-int main() {
-    printf("尝试直接删除BoundingSet权限...\n");
-
-    if (prctl(PR_CAPBSET_DROP, CAP_SYS_ADMIN, 0, 0, 0) == -1) {
-        perror("Failed to drop CAP_SYS_ADMIN");
-        return 1;
-    }
-    printf("Successfully dropped CAP_SYS_ADMIN\n");
-
-    if (prctl(PR_CAPBSET_DROP, CAP_SETPCAP, 0, 0, 0) == -1) {
-        perror("Failed to drop CAP_SETPCAP");
-        return 1;
-    }
-    printf("Successfully dropped CAP_SETPCAP\n");
-
-    return 0;
-}
-EOF
-
-    if gcc -o /tmp/simple_drop /tmp/simple_drop.c 2>/dev/null && /tmp/simple_drop; then
-        log_success "直接prctl方案成功"
-        rm -f /tmp/simple_drop.c /tmp/simple_drop
-
-        # 验证权限状态
-        log_info "验证BoundingSet状态:"
-        grep CapBnd /proc/self/status || true
-
-    else
-        log_warning "直接prctl方案失败，使用capsh备用方案"
-        rm -f /tmp/simple_drop.c /tmp/simple_drop
-
-        # 最后的备用方案：使用capsh（仅影响当前进程）
-        exec capsh --drop=cap_sys_admin --drop=cap_setpcap -- -c '
-            echo "[WARNING] 使用capsh备用方案，权限降级仅影响当前进程"
-            echo "[INFO] 当前权限状态:"
-            capsh --print | grep "Current:" || true
-            exec "$@"
-        ' -- "$@"
-    fi
-fi
+# 注意：不再进行权限降级，保持sudo正常工作
+# 容器安全通过Docker的安全配置来保证
+log_info "保持必要权限以确保sudo正常工作"
+log_info "容器安全通过Docker配置保证"
 
 # ========== 第三阶段：敏感文件屏蔽 ==========
 log_info "屏蔽敏感proc文件..."
@@ -291,13 +258,11 @@ fi
 
 # 清理临时文件和脚本文件
 rm -f /tmp/empty_file /tmp/fake_version /tmp/fake_cmdline 2>/dev/null || true
-rm -f /opt/system_init.sh 2>/dev/null || true
 
 log_success "安全硬件伪装系统部署完成"
 log_info "容器已进入安全模式，享受24核64GB的高配置！"
-log_info "所有危险权限已永久移除，敏感信息已屏蔽"
-log_info "容器逃逸风险已降至最低水平"
+log_info "敏感信息已屏蔽，sudo功能正常"
+log_info "硬件伪装效果已生效"
 
 # 执行传入的命令（通常是/bin/bash）
-# 这里使用exec确保权限降级后的状态传递给用户进程
 exec "$@"

@@ -192,12 +192,12 @@ class ContainerManager {
           CpuShares: 512, // CPU限制
           NetworkMode: 'bridge',
           ReadonlyRootfs: false,
-          // 专业建议的安全配置
+          // 调整安全配置以支持sudo正常工作
           SecurityOpt: [
-            'no-new-privileges:true'
+            'no-new-privileges:false'  // 临时允许权限提升以支持sudo
           ],
-          CapDrop: ['ALL'],                    // 先移除所有权限
-          CapAdd: ['SYS_ADMIN', 'SETPCAP'],    // 专业建议：只添加硬件伪装必需的权限
+          CapDrop: ['NET_ADMIN', 'NET_RAW', 'SYS_MODULE', 'SYS_RAWIO', 'SYS_PTRACE'],  // 只移除危险权限
+          CapAdd: ['SYS_ADMIN', 'SETPCAP', 'SETUID', 'SETGID', 'DAC_OVERRIDE'],        // 添加sudo必需的权限
           // 将容器数据存储到临时区
           Binds: [
             `/tmp/containers/${username}:/home/${username}:rw`,
