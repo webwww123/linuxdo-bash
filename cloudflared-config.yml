@@ -1,0 +1,7 @@
+tunnel: 3578dfcc-f1e1-4d25-bf7a-9cf2262c6431
+credentials-file: /home/codespace/.cloudflared/3578dfcc-f1e1-4d25-bf7a-9cf2262c6431.json
+
+ingress:
+  - hostname: linuxdo-analytics.supxh.xin
+    service: http://localhost:8080
+  - service: http_status:404
