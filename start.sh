@@ -1,47 +1,51 @@
 #!/bin/bash
 
-echo "🚀 启动Linux容器管理系统..."
+# Linux Analytics - 快速启动脚本
+# 三合一架构 - Docker Compose 部署
+
+set -e
+
+echo "🚀 启动 Linux Analytics 三合一平台..."
+echo ""
 
 # 检查Docker是否运行
-if ! docker info > /dev/null 2>&1; then
-    echo "❌ Docker未运行，请先启动Docker"
+if ! docker info >/dev/null 2>&1; then
+    echo "❌ Docker 未运行，请先启动 Docker"
     exit 1
 fi
 
-# 构建基础镜像
-echo "🐳 构建Ubuntu基础镜像..."
-docker build -t linux-ubuntu:latest -f docker/Dockerfile.ubuntu .
-
-if [ $? -ne 0 ]; then
-    echo "❌ 镜像构建失败"
+# 检查Docker Compose是否可用
+if ! command -v docker compose >/dev/null 2>&1; then
+    echo "❌ Docker Compose 未安装，请先安装 Docker Compose"
     exit 1
 fi
 
-echo "✅ 基础镜像构建完成"
-
-# 启动后端服务
-echo "🔧 启动后端服务..."
-cd backend
-npm start &
-BACKEND_PID=$!
-
-# 等待后端启动
-sleep 3
-
-# 启动前端开发服务器
-echo "🎨 启动前端服务..."
-cd ../frontend
-npm run dev &
-FRONTEND_PID=$!
-
-echo "✅ 服务启动完成！"
+echo "✅ Docker 环境检查通过"
 echo ""
-echo "📱 前端地址: http://localhost:5173"
-echo "🔧 后端地址: http://localhost:3001"
+
+# 构建并启动所有服务
+echo "🔨 构建并启动所有服务..."
+docker compose up --build -d
+
 echo ""
-echo "按 Ctrl+C 停止所有服务"
+echo "⏳ 等待服务启动..."
+sleep 5
 
-# 等待用户中断
-trap "echo '🛑 正在停止服务...'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT
+# 检查服务状态
+echo ""
+echo "📊 服务状态："
+docker compose ps
 
-wait
+echo ""
+echo "🎉 启动完成！"
+echo ""
+echo "📱 访问地址："
+echo "   主应用:     http://localhost:8080"
+echo "   监控面板:   http://localhost:8080/grafana"
+echo "   WebSSH:     http://localhost:8080/webssh"
+echo ""
+echo "📝 管理命令："
+echo "   查看日志:   docker compose logs -f"
+echo "   停止服务:   docker compose down"
+echo "   重启服务:   docker compose restart"
+echo ""
