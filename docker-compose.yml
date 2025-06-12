@@ -1,50 +1,55 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  grafana-analytics:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: grafana-analytics
-    restart: unless-stopped
-    ports:
-      - "3001:3001"  # 主应用端口（包含前端静态文件）
-      - "3002:3002"  # WebSSH端口
-      - "5173:5173"  # 前端开发服务器端口
-      - "8080:8080"  # Grafana监控界面端口
+  backend:
+    build: ./backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - TEMP_STORAGE=true
+      - CONTAINER_DATA_PATH=/tmp/containers
     volumes:
       # 挂载Docker socket以便管理用户容器
       - /var/run/docker.sock:/var/run/docker.sock
       # 数据持久化到临时存储区 (适用于Codespace临时环境)
-      - /tmp/app-data:/app/backend/data
+      - /tmp/app-data:/app/data
       - /tmp/app-logs:/app/logs
       # 挂载容器临时存储目录
       - /tmp/containers:/tmp/containers
+    expose:
+      - "3001"
+    restart: unless-stopped
+
+  webssh:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.webssh
     environment:
       - NODE_ENV=production
-      - PORT=3001
-      - WEBSSH_PORT=3002
-      - GRAFANA_PORT=8080
-      - TEMP_STORAGE=true
-      - CONTAINER_DATA_PATH=/tmp/containers
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '2.0'
-        reservations:
-          memory: 1G
-          cpus: '1.0'
+      - PORT=3002
+    expose:
+      - "3002"
+    restart: unless-stopped
 
-# 注释掉持久化卷，改用临时存储
-# volumes:
-#   ollama-ml-data:
-#     driver: local
-#   ollama-ml-logs:
-#     driver: local
+  grafana:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.grafana
+    environment:
+      - NODE_ENV=production
+      - GRAFANA_PORT=8080
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    depends_on:
+      - backend
+      - webssh
+      - grafana
+    ports:
+      - "8080:80"        # ✅ 外网只看见这一个端口
+    restart: unless-stopped

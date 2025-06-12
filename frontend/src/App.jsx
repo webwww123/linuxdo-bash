@@ -46,28 +46,10 @@ function App() {
     // 自动填充功能在LoginForm组件中处理
 
     // 初始化Socket连接
-    // 根据环境自动选择后端地址
-    const getBackendUrl = () => {
-      if (window.location.hostname.includes('github.dev')) {
-        // GitHub Codespaces环境
-        return window.location.origin.replace('-5173', '-3001');
-      }
-
-      // 自动检测当前环境
-      const protocol = window.location.protocol;
-      const hostname = window.location.hostname;
-      const currentPort = window.location.port;
-
-      // 如果当前访问的是3001端口（生产环境），直接使用当前地址
-      if (currentPort === '3001') {
-        return `${protocol}//${hostname}:3001`;
-      }
-
-      // 如果是开发环境（5173端口）或其他端口，连接到3001
-      return `${protocol}//${hostname}:3001`;
-    };
-
-    const backendUrl = getBackendUrl();
+    // 在Docker环境中使用相对路径，开发环境使用完整URL
+    const backendUrl = typeof __API_BASE__ !== 'undefined' && __API_BASE__ === '/api'
+      ? window.location.origin  // Docker环境，使用当前域名
+      : (typeof __API_BASE__ !== 'undefined' ? __API_BASE__ : window.location.origin);
     console.log('连接到后端URL:', backendUrl);
 
     const newSocket = io(backendUrl, {
@@ -185,30 +167,9 @@ function App() {
 
   const handleAutoLogin = (inputUsername) => {
     // 为Linux登录创建新的socket连接
-    const getBackendUrl = () => {
-      if (window.location.hostname.includes('github.dev')) {
-        // GitHub Codespaces环境 - 支持多个前端端口
-        let origin = window.location.origin;
-        // 替换任何前端端口为3001
-        origin = origin.replace(/-517[3-9]/, '-3001');
-        return origin;
-      }
-
-      // 自动检测当前环境
-      const protocol = window.location.protocol;
-      const hostname = window.location.hostname;
-      const currentPort = window.location.port;
-
-      // 如果当前访问的是3001端口（生产环境），直接使用当前地址
-      if (currentPort === '3001') {
-        return `${protocol}//${hostname}:3001`;
-      }
-
-      // 如果是开发环境或其他端口，连接到3001
-      return `${protocol}//${hostname}:3001`;
-    };
-
-    const backendUrl = getBackendUrl();
+    const backendUrl = typeof __API_BASE__ !== 'undefined' && __API_BASE__ === '/api'
+      ? window.location.origin  // Docker环境，使用当前域名
+      : (typeof __API_BASE__ !== 'undefined' ? __API_BASE__ : window.location.origin);
     console.log('自动登录连接到后端URL:', backendUrl);
 
     const newSocket = io(backendUrl, {

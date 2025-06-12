@@ -34,8 +34,8 @@ mainServerSocket.on('disconnect', () => {
   console.log('WebSSH服务器与主API服务器断开连接');
 });
 
-// 提供简单的webssh页面
-app.get('/ssh', (req, res) => {
+// 提供简单的webssh页面 - 支持根路径和/ssh路径
+const sshHandler = (req, res) => {
   const { username } = req.query;
 
   res.send(`
@@ -238,7 +238,11 @@ app.get('/ssh', (req, res) => {
     </body>
     </html>
   `);
-});
+};
+
+// 注册路由处理器
+app.get('/', sshHandler);
+app.get('/ssh', sshHandler);
 
 // Socket.IO 连接处理
 io.on('connection', (socket) => {

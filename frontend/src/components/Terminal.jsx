@@ -409,27 +409,7 @@ const Terminal = ({ socket, username, onFullscreenChange }) => {
               };
             }
           }}
-          src={(() => {
-            // 智能地址检测
-            const getWebSSHUrl = () => {
-              if (window.location.hostname.includes('github.dev')) {
-                // GitHub Codespaces环境 - 支持多个端口
-                let origin = window.location.origin;
-                // 替换任何前端端口为3002
-                origin = origin.replace(/-517[3-9]/, '-3002');
-                return origin;
-              }
-
-              // 自动检测当前环境
-              const protocol = window.location.protocol;
-              const hostname = window.location.hostname;
-
-              // 使用当前主机的3002端口
-              return `${protocol}//${hostname}:3002`;
-            };
-
-            return `${getWebSSHUrl()}/ssh?username=${username}`;
-          })()}
+          src={`/webssh/ssh?username=${username}`}
           style={{
             width: '100%',
             height: '100%',

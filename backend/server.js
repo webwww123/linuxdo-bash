@@ -18,20 +18,24 @@ const UserService = require('./services/userService');
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS配置
+const allowedOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? true : [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:5176",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5176",
+  /^https:\/\/.*\.app\.github\.dev$/
+]);
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? true : [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-      "http://localhost:5176",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://127.0.0.1:3001",
-      "http://127.0.0.1:5173",
-      "http://127.0.0.1:5176",
-      /^https:\/\/.*\.app\.github\.dev$/
-    ],
+    origin: allowedOrigin,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -39,18 +43,7 @@ const io = socketIo(server, {
 
 // 中间件
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? true : [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://localhost:5176",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5176",
-    /^https:\/\/.*\.app\.github\.dev$/
-  ],
+  origin: allowedOrigin,
   credentials: true
 }));
 app.use(express.json());
