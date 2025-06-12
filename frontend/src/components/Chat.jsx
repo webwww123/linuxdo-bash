@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, MessageCircle, Smile, Image, AtSign } from 'lucide-react';
+import { Send, MessageCircle, Smile, Image } from 'lucide-react';
 import { getUserAvatarColor, getUserInitial, getUserAvatar } from '../utils/avatarColors';
 
 // 常用表情列表
@@ -33,16 +33,12 @@ const EMOJI_LIST = [
 const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = [] }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showMentionList, setShowMentionList] = useState(false);
-  const [mentionFilter, setMentionFilter] = useState('');
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [userAvatars, setUserAvatars] = useState({});
   const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
   const emojiPickerRef = useRef(null);
-  const mentionListRef = useRef(null);
   const fileInputRef = useRef(null);
 
   // 用于跟踪是否是初次加载
@@ -108,9 +104,6 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
         setShowEmojiPicker(false);
       }
-      if (mentionListRef.current && !mentionListRef.current.contains(event.target)) {
-        setShowMentionList(false);
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -129,40 +122,9 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
     });
     setInputMessage('');
     setShowEmojiPicker(false);
-    setShowMentionList(false);
   };
 
   const handleKeyDown = (e) => {
-    // 处理@用户列表的键盘导航
-    if (showMentionList && filteredUsers.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedMentionIndex(prev =>
-          prev < filteredUsers.length - 1 ? prev + 1 : 0
-        );
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedMentionIndex(prev =>
-          prev > 0 ? prev - 1 : filteredUsers.length - 1
-        );
-        return;
-      }
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        selectMention(filteredUsers[selectedMentionIndex]);
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setShowMentionList(false);
-        setMentionFilter('');
-        setSelectedMentionIndex(0);
-        return;
-      }
-    }
-
     // Shift+Enter 换行
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
@@ -195,26 +157,11 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
     textarea.style.height = Math.min(scrollHeight, maxHeight) + 'px';
   };
 
-  // 监听输入变化，自动调整高度和处理@功能
+  // 监听输入变化，自动调整高度
   const handleInputChange = (e) => {
     const value = e.target.value;
     setInputMessage(value);
     adjustTextareaHeight(e.target);
-
-    // 检查是否输入了@符号
-    const cursorPosition = e.target.selectionStart;
-    const textBeforeCursor = value.substring(0, cursorPosition);
-    const atMatch = textBeforeCursor.match(/@([a-zA-Z0-9_\u4e00-\u9fa5]*)$/);
-
-    if (atMatch) {
-      setMentionFilter(atMatch[1]);
-      setShowMentionList(true);
-      setSelectedMentionIndex(0); // 重置选中索引
-    } else {
-      setShowMentionList(false);
-      setMentionFilter('');
-      setSelectedMentionIndex(0);
-    }
   };
 
   const handleEmojiSelect = (emoji) => {
@@ -301,77 +248,52 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
     }
   };
 
-  // 选择@用户
-  const selectMention = (username) => {
-    const cursorPosition = inputRef.current.selectionStart;
-    const textBeforeCursor = inputMessage.substring(0, cursorPosition);
-    const textAfterCursor = inputMessage.substring(cursorPosition);
 
-    // 找到@符号的位置
-    const atIndex = textBeforeCursor.lastIndexOf('@');
-    if (atIndex !== -1) {
-      const newText = textBeforeCursor.substring(0, atIndex) + `@${username} ` + textAfterCursor;
-      setInputMessage(newText);
-      setShowMentionList(false);
-      setMentionFilter('');
-      setSelectedMentionIndex(0);
-
-      // 设置光标位置
-      setTimeout(() => {
-        const newCursorPos = atIndex + username.length + 2;
-        inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        inputRef.current.focus();
-      }, 0);
-    }
-  };
-
-  // 过滤用户列表
-  const filteredUsers = activeUsers.filter(user =>
-    user !== currentUsername &&
-    user.toLowerCase().includes(mentionFilter.toLowerCase())
-  );
 
   // 渲染带@高亮的消息
   const renderMessageWithMentions = (text) => {
-    if (!text) return '';
+    if (!text) return text;
 
+    // 使用dangerouslySetInnerHTML来渲染HTML，这样点击事件更可靠
     const mentionRegex = /@([a-zA-Z0-9_\u4e00-\u9fa5]+)/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
+    let processedText = text;
 
-    while ((match = mentionRegex.exec(text)) !== null) {
-      // 添加@之前的文本
-      if (match.index > lastIndex) {
-        parts.push(text.substring(lastIndex, match.index));
-      }
+    processedText = processedText.replace(mentionRegex, (match, username) => {
+      const isCurrentUser = username === currentUsername;
+      const colorClass = isCurrentUser
+        ? 'color: #2563eb; background-color: #dbeafe; padding: 2px 4px; border-radius: 4px;'
+        : 'color: #16a34a;';
 
-      // 添加@用户（高亮显示）
-      const mentionedUser = match[1];
-      const isCurrentUser = mentionedUser === currentUsername;
-      parts.push(
-        <span
-          key={match.index}
-          className={`font-semibold ${
-            isCurrentUser
-              ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 px-1 rounded'
-              : 'text-green-600 dark:text-green-400'
-          }`}
-        >
-          @{mentionedUser}
-        </span>
-      );
+      return `<span
+        style="font-weight: 600; cursor: pointer; ${colorClass}"
+        onclick="window.handleMentionClick('${username}')"
+        onmouseover="this.style.textDecoration='underline'"
+        onmouseout="this.style.textDecoration='none'"
+        title="点击@${username}"
+      >@${username}</span>`;
+    });
 
-      lastIndex = match.index + match[0].length;
-    }
-
-    // 添加剩余文本
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
-    }
-
-    return parts.length > 1 ? parts : text;
+    return <span dangerouslySetInnerHTML={{ __html: processedText }} />;
   };
+
+  // 全局函数，处理@用户点击
+  React.useEffect(() => {
+    window.handleMentionClick = (username) => {
+      console.log('点击了@用户:', username);
+      setInputMessage(prev => prev + (prev.endsWith(' ') || prev === '' ? '' : ' ') + `@${username} `);
+      if (inputRef.current) {
+        inputRef.current.focus();
+        setTimeout(() => {
+          const newLength = inputMessage.length + (inputMessage.endsWith(' ') || inputMessage === '' ? 0 : 1) + username.length + 2;
+          inputRef.current.setSelectionRange(newLength, newLength);
+        }, 0);
+      }
+    };
+
+    return () => {
+      delete window.handleMentionClick;
+    };
+  }, [inputMessage]);
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -546,16 +468,6 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
 
             {/* 功能按钮组 */}
             <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-1">
-              {/* @用户按钮 */}
-              <button
-                type="button"
-                onClick={() => setShowMentionList(!showMentionList)}
-                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                title="@用户"
-              >
-                <AtSign size={16} />
-              </button>
-
               {/* 图片上传按钮 */}
               <button
                 type="button"
@@ -605,37 +517,7 @@ const Chat = ({ socket, messages, currentUsername, onSendMessage, activeUsers = 
           </button>
         </form>
 
-        {/* @用户列表 */}
-        {showMentionList && filteredUsers.length > 0 && (
-          <div
-            ref={mentionListRef}
-            className="absolute bottom-full left-4 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg py-2 z-50"
-            style={{ width: '200px', maxHeight: '200px' }}
-          >
-            <div className="text-xs text-gray-500 dark:text-gray-400 px-3 py-1 border-b border-gray-200 dark:border-gray-600">
-              选择用户
-            </div>
-            <div className="overflow-y-auto max-h-40">
-              {filteredUsers.map((user, index) => (
-                <button
-                  key={user}
-                  type="button"
-                  onClick={() => selectMention(user)}
-                  className={`w-full px-3 py-2 text-left transition-colors flex items-center space-x-2 ${
-                    index === selectedMentionIndex
-                      ? 'bg-blue-100 dark:bg-blue-900'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <div className={`w-6 h-6 ${getUserAvatarColor(user, userAvatars[user])} text-white rounded-full flex items-center justify-center text-xs font-medium`}>
-                    {getUserInitial(user, userAvatars[user])}
-                  </div>
-                  <span className="text-sm">{user}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+
 
         {/* 表情选择器 */}
         {showEmojiPicker && (
