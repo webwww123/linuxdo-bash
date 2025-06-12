@@ -4,8 +4,8 @@ const validator = require('validator');
 class ContainerManager {
   constructor(userService) {
     this.docker = new Docker();
-    this.containers = new Map(); // username -> { containerId, createdAt }
-    this.CONTAINER_LIFETIME = 2 * 60 * 60 * 1000; // 2小时
+    this.containers = new Map(); // username -> { containerId, createdAt, lastActivity }
+    this.INACTIVITY_TIMEOUT = 20 * 60 * 1000; // 20分钟不活动自动清除
     this.userService = userService;
   }
 
@@ -65,7 +65,8 @@ class ContainerManager {
             // 记录容器信息到内存
             this.containers.set(username, {
               containerId: existingContainer.Id,
-              createdAt: Date.now()
+              createdAt: Date.now(),
+              lastActivity: Date.now()
             });
 
             return {
@@ -83,7 +84,8 @@ class ContainerManager {
 
             this.containers.set(username, {
               containerId,
-              createdAt: Date.now()
+              createdAt: Date.now(),
+              lastActivity: Date.now()
             });
 
             return {
@@ -127,7 +129,8 @@ class ContainerManager {
       // 记录容器信息到内存
       this.containers.set(username, {
         containerId,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        lastActivity: Date.now()
       });
 
       return {
@@ -405,7 +408,8 @@ EOF`,
       // 3. 更新容器记录
       this.containers.set(username, {
         containerId,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        lastActivity: Date.now()
       });
 
       console.log(`容器重置完成: ${username} -> ${containerId}`);
@@ -420,51 +424,69 @@ EOF`,
   }
 
   /**
-   * 延长容器时间
+   * 更新用户活动时间
+   */
+  updateUserActivity(username) {
+    const containerInfo = this.containers.get(username);
+    if (containerInfo) {
+      containerInfo.lastActivity = Date.now();
+    }
+  }
+
+  /**
+   * 延长容器时间（重置不活动计时器）
    */
   async extendContainer(username) {
     try {
-      console.log(`延长容器时间: ${username}`);
+      console.log(`重置容器不活动计时器: ${username}`);
 
       const containerInfo = this.containers.get(username);
       if (!containerInfo) {
         throw new Error('容器不存在');
       }
 
-      // 延长2小时（重置创建时间）
-      containerInfo.createdAt = Date.now();
+      // 重置最后活动时间
+      containerInfo.lastActivity = Date.now();
 
-      console.log(`容器时间已延长: ${username}`);
+      console.log(`容器不活动计时器已重置: ${username}`);
       return {
-        message: '容器时间已延长2小时',
-        newExpireTime: Date.now() + this.CONTAINER_LIFETIME
+        message: '容器不活动计时器已重置，将在20分钟无活动后自动清理',
+        newExpireTime: Date.now() + this.INACTIVITY_TIMEOUT
       };
     } catch (error) {
-      console.error('延长容器时间失败:', error);
+      console.error('重置容器不活动计时器失败:', error);
       throw error;
     }
   }
 
   /**
-   * 清理过期容器
+   * 清理不活动容器
    */
-  async cleanupExpiredContainers() {
+  async cleanupInactiveContainers() {
     const now = Date.now();
-    const expiredUsers = [];
+    const inactiveUsers = [];
 
     for (const [username, info] of this.containers.entries()) {
-      if (now - info.createdAt > this.CONTAINER_LIFETIME) {
-        expiredUsers.push(username);
+      // 检查最后活动时间，如果超过20分钟没有活动则清理
+      if (now - info.lastActivity > this.INACTIVITY_TIMEOUT) {
+        inactiveUsers.push({
+          username,
+          inactiveTime: Math.round((now - info.lastActivity) / 1000 / 60) // 转换为分钟
+        });
       }
     }
 
-    for (const username of expiredUsers) {
+    for (const { username, inactiveTime } of inactiveUsers) {
       try {
         await this.removeContainer(username);
-        console.log(`清理过期容器: ${username}`);
+        console.log(`清理不活动容器: ${username} (不活动时间: ${inactiveTime}分钟)`);
       } catch (error) {
         console.error(`清理容器失败: ${username}`, error);
       }
+    }
+
+    if (inactiveUsers.length > 0) {
+      console.log(`本次清理了 ${inactiveUsers.length} 个不活动容器`);
     }
   }
 

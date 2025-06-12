@@ -281,15 +281,19 @@ io.on('connection', (socket) => {
 
   // 终端输入
   socket.on('terminal-input', (data) => {
-    if (socket.terminalId) {
+    if (socket.terminalId && socket.username) {
       terminalService.writeToTerminal(socket.terminalId, data);
+      // 更新用户活动时间
+      containerManager.updateUserActivity(socket.username);
     }
   });
 
   // 终端调整大小
   socket.on('terminal-resize', (data) => {
-    if (socket.terminalId) {
+    if (socket.terminalId && socket.username) {
       terminalService.resizeTerminal(socket.terminalId, data.cols, data.rows);
+      // 更新用户活动时间
+      containerManager.updateUserActivity(socket.username);
     }
   });
 
@@ -304,6 +308,9 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: '请先登录后再发送消息' });
         return;
       }
+
+      // 更新用户活动时间
+      containerManager.updateUserActivity(socket.username);
 
       // 检查消息内容（图片消息可以没有文本）
       if (data.messageType !== 'image' && (!data.message || !data.message.trim())) {
@@ -511,6 +518,10 @@ io.on('connection', (socket) => {
   // 心跳检测
   socket.on('ping', () => {
     socket.emit('pong');
+    // 更新用户活动时间
+    if (socket.username) {
+      containerManager.updateUserActivity(socket.username);
+    }
   });
 
   // 断开连接
@@ -536,14 +547,14 @@ io.on('connection', (socket) => {
   });
 });
 
-// 定期清理过期容器
+// 定期清理不活动容器
 setInterval(async () => {
   try {
-    await containerManager.cleanupExpiredContainers();
+    await containerManager.cleanupInactiveContainers();
   } catch (error) {
-    console.error('清理容器失败:', error);
+    console.error('清理不活动容器失败:', error);
   }
-}, 5 * 60 * 1000); // 每5分钟检查一次
+}, 2 * 60 * 1000); // 每2分钟检查一次
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
