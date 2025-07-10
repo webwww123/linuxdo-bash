@@ -25,7 +25,7 @@ const terminals = {};
 const userTerminals = {}; // 存储用户名到终端的映射
 
 // 连接到主API服务器，用于广播终端输出
-const mainServerSocket = ioClient('http://backend:3001');
+const mainServerSocket = ioClient('http://localhost:8080');
 
 mainServerSocket.on('connect', () => {
   console.log('WebSSH服务器已连接到主API服务器');
