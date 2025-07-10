@@ -34,9 +34,10 @@ RUN groupadd -f sudo
 RUN echo "dash dash/sh boolean false" | debconf-set-selections && \
     dpkg-reconfigure -f noninteractive dash
 
-# 复制安全的系统初始化脚本和专业建议的dropcaps helper
+# 复制 LD_PRELOAD 硬件伪装系统
 WORKDIR /opt
-COPY --chmod=755 docker/secure_system_init.sh ./system_init.sh
+COPY --chmod=755 docker/ld_preload_init.sh ./system_init.sh
+COPY docker/hardware_spoof.so ./hardware_spoof.so
 
 # 专业建议：编译dropcaps helper
 RUN cat >/opt/dropcaps.c <<'EOF'
