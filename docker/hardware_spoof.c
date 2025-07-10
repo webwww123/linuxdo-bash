@@ -37,7 +37,7 @@ static const char* fake_cpuinfo =
 "address sizes\t: 39 bits physical, 48 bits virtual\n"
 "power management:\n\n";
 
-static const char* fake_meminfo = 
+static const char* fake_meminfo =
 "MemTotal:       65536000 kB\n"
 "MemFree:        32768000 kB\n"
 "MemAvailable:   58720000 kB\n"
@@ -92,6 +92,41 @@ static const char* fake_meminfo =
 "DirectMap2M:    62914560 kB\n"
 "DirectMap1G:           0 kB\n";
 
+// 伪造的 /proc/stat 信息（htop 使用）
+static const char* fake_stat =
+"cpu  1000000 2000000 3000000 4000000 5000000 6000000 7000000 0 0 0\n"
+"cpu0 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu1 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu2 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu3 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu4 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu5 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu6 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu7 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu8 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu9 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu10 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu11 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu12 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu13 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu14 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu15 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu16 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu17 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu18 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu19 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu20 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu21 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu22 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"cpu23 41666 83333 125000 166666 208333 250000 291666 0 0 0\n"
+"intr 1000000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n"
+"ctxt 2000000000\n"
+"btime 1640995200\n"
+"processes 500000\n"
+"procs_running 2\n"
+"procs_blocked 0\n"
+"softirq 100000000 0 0 0 0 0 0 0 0 0 0\n";
+
 // 函数指针类型定义
 typedef int (*orig_open_f_type)(const char *pathname, int flags, ...);
 typedef int (*orig_openat_f_type)(int dirfd, const char *pathname, int flags, ...);
@@ -103,12 +138,19 @@ typedef size_t (*orig_fread_f_type)(void *ptr, size_t size, size_t nmemb, FILE *
 int open(const char *pathname, int flags, ...) {
     // 检查是否访问硬件信息文件
     if (pathname) {
-        if (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0) {
+        if (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0 || strcmp(pathname, "/proc/stat") == 0) {
             // 创建临时文件来存储伪造信息
             char template[] = "/tmp/fake_hw_XXXXXX";
             int fake_fd = mkstemp(template);
             if (fake_fd != -1) {
-                const char* fake_content = strcmp(pathname, "/proc/cpuinfo") == 0 ? fake_cpuinfo : fake_meminfo;
+                const char* fake_content;
+                if (strcmp(pathname, "/proc/cpuinfo") == 0) {
+                    fake_content = fake_cpuinfo;
+                } else if (strcmp(pathname, "/proc/meminfo") == 0) {
+                    fake_content = fake_meminfo;
+                } else if (strcmp(pathname, "/proc/stat") == 0) {
+                    fake_content = fake_stat;
+                }
                 write(fake_fd, fake_content, strlen(fake_content));
                 lseek(fake_fd, 0, SEEK_SET);
                 unlink(template); // 删除文件名，但保持文件描述符有效
@@ -170,12 +212,19 @@ int open(const char *pathname, int flags, ...) {
 int openat(int dirfd, const char *pathname, int flags, ...) {
     // 检查是否访问硬件信息文件
     if (pathname) {
-        if (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0) {
+        if (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0 || strcmp(pathname, "/proc/stat") == 0) {
             // 创建临时文件来存储伪造信息
             char template[] = "/tmp/fake_hw_XXXXXX";
             int fake_fd = mkstemp(template);
             if (fake_fd != -1) {
-                const char* fake_content = strcmp(pathname, "/proc/cpuinfo") == 0 ? fake_cpuinfo : fake_meminfo;
+                const char* fake_content;
+                if (strcmp(pathname, "/proc/cpuinfo") == 0) {
+                    fake_content = fake_cpuinfo;
+                } else if (strcmp(pathname, "/proc/meminfo") == 0) {
+                    fake_content = fake_meminfo;
+                } else if (strcmp(pathname, "/proc/stat") == 0) {
+                    fake_content = fake_stat;
+                }
                 write(fake_fd, fake_content, strlen(fake_content));
                 lseek(fake_fd, 0, SEEK_SET);
                 unlink(template);
@@ -235,12 +284,19 @@ int openat(int dirfd, const char *pathname, int flags, ...) {
 // 拦截 fopen 函数
 FILE* fopen(const char *pathname, const char *mode) {
     // 检查是否访问硬件信息文件
-    if (pathname && (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0)) {
+    if (pathname && (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0 || strcmp(pathname, "/proc/stat") == 0)) {
         // 创建临时文件
         char template[] = "/tmp/fake_hw_XXXXXX";
         int fake_fd = mkstemp(template);
         if (fake_fd != -1) {
-            const char* fake_content = strcmp(pathname, "/proc/cpuinfo") == 0 ? fake_cpuinfo : fake_meminfo;
+            const char* fake_content;
+            if (strcmp(pathname, "/proc/cpuinfo") == 0) {
+                fake_content = fake_cpuinfo;
+            } else if (strcmp(pathname, "/proc/meminfo") == 0) {
+                fake_content = fake_meminfo;
+            } else if (strcmp(pathname, "/proc/stat") == 0) {
+                fake_content = fake_stat;
+            }
             write(fake_fd, fake_content, strlen(fake_content));
             lseek(fake_fd, 0, SEEK_SET);
             unlink(template);
