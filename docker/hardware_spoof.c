@@ -94,6 +94,7 @@ static const char* fake_meminfo =
 
 // 函数指针类型定义
 typedef int (*orig_open_f_type)(const char *pathname, int flags, ...);
+typedef int (*orig_openat_f_type)(int dirfd, const char *pathname, int flags, ...);
 typedef ssize_t (*orig_read_f_type)(int fd, void *buf, size_t count);
 typedef FILE* (*orig_fopen_f_type)(const char *pathname, const char *mode);
 typedef size_t (*orig_fread_f_type)(void *ptr, size_t size, size_t nmemb, FILE *stream);
@@ -101,16 +102,52 @@ typedef size_t (*orig_fread_f_type)(void *ptr, size_t size, size_t nmemb, FILE *
 // 拦截 open 函数
 int open(const char *pathname, int flags, ...) {
     // 检查是否访问硬件信息文件
-    if (pathname && (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0)) {
-        // 创建临时文件来存储伪造信息
-        char template[] = "/tmp/fake_hw_XXXXXX";
-        int fake_fd = mkstemp(template);
-        if (fake_fd != -1) {
-            const char* fake_content = strcmp(pathname, "/proc/cpuinfo") == 0 ? fake_cpuinfo : fake_meminfo;
-            write(fake_fd, fake_content, strlen(fake_content));
-            lseek(fake_fd, 0, SEEK_SET);
-            unlink(template); // 删除文件名，但保持文件描述符有效
-            return fake_fd;
+    if (pathname) {
+        if (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0) {
+            // 创建临时文件来存储伪造信息
+            char template[] = "/tmp/fake_hw_XXXXXX";
+            int fake_fd = mkstemp(template);
+            if (fake_fd != -1) {
+                const char* fake_content = strcmp(pathname, "/proc/cpuinfo") == 0 ? fake_cpuinfo : fake_meminfo;
+                write(fake_fd, fake_content, strlen(fake_content));
+                lseek(fake_fd, 0, SEEK_SET);
+                unlink(template); // 删除文件名，但保持文件描述符有效
+                return fake_fd;
+            }
+        }
+        // 拦截 /sys/devices/system/cpu/ 相关文件
+        else if (strstr(pathname, "/sys/devices/system/cpu/") != NULL) {
+            // 对于 CPU 相关的 sys 文件，返回伪造信息
+            if (strstr(pathname, "/sys/devices/system/cpu/online") != NULL) {
+                char template[] = "/tmp/fake_cpu_online_XXXXXX";
+                int fake_fd = mkstemp(template);
+                if (fake_fd != -1) {
+                    write(fake_fd, "0-23\n", 5); // 24 核心 (0-23)
+                    lseek(fake_fd, 0, SEEK_SET);
+                    unlink(template);
+                    return fake_fd;
+                }
+            }
+            else if (strstr(pathname, "/sys/devices/system/cpu/present") != NULL) {
+                char template[] = "/tmp/fake_cpu_present_XXXXXX";
+                int fake_fd = mkstemp(template);
+                if (fake_fd != -1) {
+                    write(fake_fd, "0-23\n", 5); // 24 核心 (0-23)
+                    lseek(fake_fd, 0, SEEK_SET);
+                    unlink(template);
+                    return fake_fd;
+                }
+            }
+            else if (strstr(pathname, "/sys/devices/system/cpu/possible") != NULL) {
+                char template[] = "/tmp/fake_cpu_possible_XXXXXX";
+                int fake_fd = mkstemp(template);
+                if (fake_fd != -1) {
+                    write(fake_fd, "0-23\n", 5); // 24 核心 (0-23)
+                    lseek(fake_fd, 0, SEEK_SET);
+                    unlink(template);
+                    return fake_fd;
+                }
+            }
         }
     }
     
@@ -126,6 +163,72 @@ int open(const char *pathname, int flags, ...) {
         return orig_open(pathname, flags, mode);
     } else {
         return orig_open(pathname, flags);
+    }
+}
+
+// 拦截 openat 函数 (现代程序更多使用这个)
+int openat(int dirfd, const char *pathname, int flags, ...) {
+    // 检查是否访问硬件信息文件
+    if (pathname) {
+        if (strcmp(pathname, "/proc/cpuinfo") == 0 || strcmp(pathname, "/proc/meminfo") == 0) {
+            // 创建临时文件来存储伪造信息
+            char template[] = "/tmp/fake_hw_XXXXXX";
+            int fake_fd = mkstemp(template);
+            if (fake_fd != -1) {
+                const char* fake_content = strcmp(pathname, "/proc/cpuinfo") == 0 ? fake_cpuinfo : fake_meminfo;
+                write(fake_fd, fake_content, strlen(fake_content));
+                lseek(fake_fd, 0, SEEK_SET);
+                unlink(template);
+                return fake_fd;
+            }
+        }
+        // 拦截 /sys/devices/system/cpu/ 相关文件
+        else if (strstr(pathname, "/sys/devices/system/cpu/") != NULL) {
+            if (strstr(pathname, "/sys/devices/system/cpu/online") != NULL) {
+                char template[] = "/tmp/fake_cpu_online_XXXXXX";
+                int fake_fd = mkstemp(template);
+                if (fake_fd != -1) {
+                    write(fake_fd, "0-23\n", 5);
+                    lseek(fake_fd, 0, SEEK_SET);
+                    unlink(template);
+                    return fake_fd;
+                }
+            }
+            else if (strstr(pathname, "/sys/devices/system/cpu/present") != NULL) {
+                char template[] = "/tmp/fake_cpu_present_XXXXXX";
+                int fake_fd = mkstemp(template);
+                if (fake_fd != -1) {
+                    write(fake_fd, "0-23\n", 5);
+                    lseek(fake_fd, 0, SEEK_SET);
+                    unlink(template);
+                    return fake_fd;
+                }
+            }
+            else if (strstr(pathname, "/sys/devices/system/cpu/possible") != NULL) {
+                char template[] = "/tmp/fake_cpu_possible_XXXXXX";
+                int fake_fd = mkstemp(template);
+                if (fake_fd != -1) {
+                    write(fake_fd, "0-23\n", 5);
+                    lseek(fake_fd, 0, SEEK_SET);
+                    unlink(template);
+                    return fake_fd;
+                }
+            }
+        }
+    }
+
+    // 调用原始 openat 函数
+    orig_openat_f_type orig_openat = (orig_openat_f_type)dlsym(RTLD_NEXT, "openat");
+
+    // 处理可变参数
+    if (flags & O_CREAT) {
+        va_list args;
+        va_start(args, flags);
+        mode_t mode = va_arg(args, mode_t);
+        va_end(args);
+        return orig_openat(dirfd, pathname, flags, mode);
+    } else {
+        return orig_openat(dirfd, pathname, flags);
     }
 }
 
