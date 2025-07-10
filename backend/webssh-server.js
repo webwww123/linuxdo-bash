@@ -9,7 +9,7 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
-  path: '/webssh/socket.io',   // 自定义路径，避免与主API冲突
+  path: '/socket.io',   // 使用默认路径，通过代理访问时会变成 /webssh/socket.io
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
@@ -73,7 +73,7 @@ const sshHandler = (req, res) => {
         <div id="terminal"></div>
         <script>
             const socket = io({
-                path: '/webssh/socket.io',
+                path: '/webssh/socket.io',  // 通过代理访问，路径会是 /webssh/socket.io
                 transports: ['websocket', 'polling']
             });
             const terminal = new Terminal({

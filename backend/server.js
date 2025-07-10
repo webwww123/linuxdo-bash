@@ -19,6 +19,48 @@ const UserService = require('./services/userService');
 const app = express();
 const server = http.createServer(app);
 
+// 处理 WebSocket 升级请求，将 /webssh/ 路径的升级请求代理到 WebSSH 服务
+server.on('upgrade', (request, socket, head) => {
+  if (request.url.startsWith('/webssh/')) {
+    console.log('代理 WebSocket 升级请求:', request.url);
+
+    // 移除 /webssh 前缀
+    const targetUrl = request.url.replace('/webssh', '');
+
+    // 创建到 WebSSH 服务的代理连接
+    const net = require('net');
+    const proxySocket = net.connect(3002, 'localhost', () => {
+      console.log('代理连接到 WebSSH 服务成功');
+
+      // 转发原始的 HTTP 升级请求
+      const requestLine = `${request.method} ${targetUrl} HTTP/1.1\r\n`;
+      const headers = Object.keys(request.headers)
+        .map(key => `${key}: ${request.headers[key]}`)
+        .join('\r\n');
+
+      proxySocket.write(requestLine + headers + '\r\n\r\n');
+
+      if (head && head.length > 0) {
+        proxySocket.write(head);
+      }
+
+      // 双向数据转发
+      proxySocket.pipe(socket);
+      socket.pipe(proxySocket);
+    });
+
+    proxySocket.on('error', (err) => {
+      console.error('WebSocket 代理连接错误:', err);
+      socket.end();
+    });
+
+    socket.on('error', (err) => {
+      console.error('客户端 WebSocket 错误:', err);
+      proxySocket.end();
+    });
+  }
+});
+
 // CORS配置
 const allowedOrigin = process.env.CORS_ORIGIN || [
   "http://localhost:5173",
@@ -144,6 +186,37 @@ function broadcastUserList() {
   console.log('广播用户列表:', userList);
   io.emit('user-list-updated', userList);
 }
+
+// WebSSH 代理路由 - 简单的 HTTP 代理，不处理 WebSocket
+app.use('/webssh', (req, res) => {
+  const targetUrl = `http://localhost:3002${req.url}`;
+  console.log(`代理 WebSSH 请求: ${req.url} -> ${targetUrl}`);
+
+  // 简单的代理实现
+  const http = require('http');
+  const url = require('url');
+
+  const parsedUrl = url.parse(targetUrl);
+  const options = {
+    hostname: parsedUrl.hostname,
+    port: parsedUrl.port,
+    path: parsedUrl.path,
+    method: req.method,
+    headers: req.headers
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error('WebSSH 代理错误:', err);
+    res.status(500).send('代理错误');
+  });
+
+  req.pipe(proxyReq);
+});
 
 // API路由
 app.get('/api/health', (req, res) => {
