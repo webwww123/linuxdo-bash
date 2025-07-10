@@ -20,7 +20,7 @@ const app = express();
 const server = http.createServer(app);
 
 // CORS配置
-const allowedOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'production' ? true : [
+const allowedOrigin = process.env.CORS_ORIGIN || [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
@@ -30,8 +30,9 @@ const allowedOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === 'prod
   "http://127.0.0.1:3001",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5176",
-  /^https:\/\/.*\.app\.github\.dev$/
-]);
+  /^https:\/\/.*\.app\.github\.dev$/,
+  /^https:\/\/.*\.trycloudflare\.com$/
+];
 
 const io = socketIo(server, {
   cors: {
@@ -188,6 +189,7 @@ io.on('connection', (socket) => {
 
   // 用户加入
   socket.on('join', async (data) => {
+    console.log('收到join事件:', data);
     try {
       const { username, password } = data;
 
@@ -204,7 +206,9 @@ io.on('connection', (socket) => {
       }
 
       // 创建或获取容器（包含密码验证）
+      console.log('开始创建或获取容器:', username);
       const result = await containerManager.getOrCreateContainer(username, password);
+      console.log('容器创建结果:', result);
 
       if (result.isNew) {
         // 新容器，发送创建进度

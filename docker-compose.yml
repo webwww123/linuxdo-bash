@@ -10,14 +10,13 @@ services:
       - CONTAINER_DATA_PATH=/tmp/containers
     volumes:
       # 挂载Docker socket以便管理用户容器
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /host/var/run/docker.sock:/var/run/docker.sock
       # 数据持久化到临时存储区 (适用于Codespace临时环境)
       - /tmp/app-data:/app/data
       - /tmp/app-logs:/app/logs
       # 挂载容器临时存储目录
       - /tmp/containers:/tmp/containers
-    expose:
-      - "3001"
+    network_mode: host
     restart: unless-stopped
 
   webssh:
@@ -27,10 +26,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3002
-    expose:
-      - "3002"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock  # 挂载Docker socket
+      - /host/var/run/docker.sock:/var/run/docker.sock  # 挂载Docker socket
+    network_mode: host
     restart: unless-stopped
 
   grafana:
@@ -39,9 +37,8 @@ services:
       dockerfile: Dockerfile.grafana
     environment:
       - NODE_ENV=production
-      - GRAFANA_PORT=8080
-    expose:
-      - "8080"
+      - GRAFANA_PORT=3003
+    network_mode: host
     restart: unless-stopped
 
   nginx:
@@ -52,6 +49,5 @@ services:
       - backend
       - webssh
       - grafana
-    ports:
-      - "8080:80"        # ✅ 外网只看见这一个端口
+    network_mode: host
     restart: unless-stopped

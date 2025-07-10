@@ -30,12 +30,16 @@ class ContainerManager {
    * 获取或创建用户容器 - 支持一人一号逻辑和密码验证
    */
   async getOrCreateContainer(username, password) {
+    console.log(`getOrCreateContainer 开始: ${username}`);
     const containerName = `linux-${username}`;
 
     try {
       // 1. 检查用户是否已存在于数据库
+      console.log(`检查用户服务: ${this.userService ? '存在' : '不存在'}`);
       if (this.userService) {
+        console.log(`查询用户: ${username}`);
         const existingUser = await this.userService.getUser(username);
+        console.log(`用户查询结果: ${existingUser ? '存在' : '不存在'}`);
         if (existingUser) {
           // 验证密码
           const isPasswordValid = await this.userService.verifyPassword(username, password);
@@ -173,9 +177,9 @@ class ContainerManager {
         console.log(`容器 ${containerName} 不存在，继续创建`);
       }
 
-      // 创建容器 - 使用专业硬件伪装系统
+      // 创建容器 - 使用官方 Ubuntu 22.04 镜像
       const container = await this.docker.createContainer({
-        Image: 'linux-ubuntu:latest',
+        Image: 'ubuntu:22.04',
         name: containerName,
         Tty: true,
         OpenStdin: true,
@@ -195,8 +199,7 @@ class ContainerManager {
           // 平衡安全配置，允许sudo但防止容器逃逸
           SecurityOpt: [
             'no-new-privileges:false',  // 允许sudo权限提升
-            'apparmor:docker-default',  // 启用AppArmor
-            `seccomp=${require('path').resolve(__dirname, '../../docker/seccomp-secure.json')}`  // 自定义seccomp配置
+            'apparmor:docker-default'   // 启用AppArmor
           ],
           // 更严格的权限控制
           CapDrop: ['ALL'],  // 移除所有权限
@@ -250,19 +253,25 @@ class ContainerManager {
    * 确保基础镜像存在
    */
   async ensureImage() {
+    console.log('开始检查 Ubuntu 22.04 镜像...');
     try {
-      await this.docker.getImage('linux-ubuntu:latest').inspect();
+      // 直接使用官方 Ubuntu 镜像，不需要构建
+      await this.docker.getImage('ubuntu:22.04').inspect();
+      console.log('Ubuntu 22.04 镜像已存在');
     } catch (error) {
-      // 镜像不存在，构建它
-      console.log('构建Linux Ubuntu镜像...');
-      await this.buildImage();
+      // 镜像不存在，拉取官方镜像
+      console.log('拉取 Ubuntu 22.04 镜像...');
+      await this.docker.pull('ubuntu:22.04');
+      console.log('Ubuntu 22.04 镜像拉取完成');
     }
+    console.log('镜像检查完成');
   }
 
   /**
    * 确保用户临时目录存在
    */
   async ensureUserTempDirectory(username) {
+    console.log(`开始创建用户临时目录: ${username}`);
     const fs = require('fs').promises;
     const path = require('path');
 

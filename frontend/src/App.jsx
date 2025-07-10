@@ -155,14 +155,24 @@ function App() {
 
     setUsername(inputUsername);
     setError('');
-    socket.connect();
-    socket.emit('join', { username: inputUsername, password: inputPassword });
 
-    // 获取聊天历史
-    socket.emit('get-chat-history');
+    // 如果socket已经连接，直接发送join事件
+    if (socket.connected) {
+      socket.emit('join', { username: inputUsername, password: inputPassword });
+      socket.emit('get-chat-history');
+      socket.emit('get-user-list');
+    } else {
+      // 如果socket未连接，先连接然后在connect事件中发送join
+      socket.connect();
 
-    // 获取用户列表
-    socket.emit('get-user-list');
+      // 设置一次性监听器，连接成功后发送join事件
+      socket.once('connect', () => {
+        console.log('Socket连接成功，发送join事件');
+        socket.emit('join', { username: inputUsername, password: inputPassword });
+        socket.emit('get-chat-history');
+        socket.emit('get-user-list');
+      });
+    }
   };
 
   const handleAutoLogin = (inputUsername) => {
