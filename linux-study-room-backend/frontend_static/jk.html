@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitor // 核心控制台</title>
+    <style>
+        :root {
+            --bg-color: #0a0b10;
+            --card-bg: rgba(20, 22, 30, 0.6);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --accent-primary: #00f3ff;
+            --accent-secondary: #7000ff;
+            --text-main: #e0e0e0;
+            --text-muted: #8892b0;
+            --success: #00ff9d;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --glass: blur(12px) saturate(180%);
+            --font-stack: 'SF Mono', 'Segoe UI Mono', 'Roboto Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(112, 0, 255, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 243, 255, 0.08), transparent 25%);
+            color: var(--text-main);
+            font-family: var(--font-stack);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Utilities */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .col { flex-direction: column; }
+        .center { align-items: center; justify-content: center; }
+        .w-full { width: 100%; }
+        .h-full { height: 100%; }
+
+        /* Login Screen */
+        #login-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1000;
+            background: rgba(10, 11, 16, 0.8);
+            backdrop-filter: blur(8px);
+        }
+
+        .login-card {
+            width: 400px;
+            padding: 3rem;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            text-align: center;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .login-title {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent-primary);
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: white;
+            font-family: inherit;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent-secondary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            filter: brightness(1.2);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(112, 0, 255, 0.4);
+        }
+
+        /* Dashboard */
+        #dashboard {
+            flex: 1;
+            padding: 2rem;
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 1.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+        }
+        h1 span {
+            color: var(--accent-primary);
+            margin-left: 0.5rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 1.5rem;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--accent-primary);
+            opacity: 0.5;
+        }
+        .stat-card:nth-child(2)::after { background: var(--accent-secondary); }
+        .stat-card:nth-child(3)::after { background: var(--success); }
+
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; }
+        .stat-value { font-size: 2rem; font-weight: bold; }
+        .stat-chart-bg {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            margin-top: 1rem;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .stat-chart-fill {
+            height: 100%;
+            background: var(--accent-primary);
+            width: 0%;
+            transition: width 0.5s ease-out;
+        }
+
+        /* Main Content */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            height: 100%;
+            min-height: 0; /* Fix for nested grid scrolling */
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.02);
+        }
+
+        /* Table */
+        .table-container {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--card-border);
+        }
+        th {
+            background: rgba(0,0,0,0.2);
+            color: var(--text-muted);
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(5px);
+        }
+        tr:hover { background: rgba(255,255,255,0.03); }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            background: rgba(255,255,255,0.1);
+        }
+        .status-running { color: var(--success); background: rgba(0, 255, 157, 0.1); box-shadow: 0 0 10px rgba(0,255,157,0.1); }
+        .status-stopped { color: var(--danger); background: rgba(255, 71, 87, 0.1); }
+
+        .actions button {
+            width: auto;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+            background: rgba(255,255,255,0.1);
+        }
+        .actions button:hover { background: var(--accent-primary); }
+
+        /* Logs */
+        #log-terminal {
+            flex: 1;
+            background: #000;
+            padding: 1rem;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: #ccc;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column-reverse; /* Auto scroll to bottom trick */
+        }
+        .log-entry { margin-bottom: 0.5rem; }
+        .log-time { color: var(--text-muted); margin-right: 0.5rem; }
+        .log-info { color: var(--accent-primary); }
+        .log-warn { color: var(--warning); }
+        .log-err { color: var(--danger); }
+
+        /* Animations */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(50px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 2rem; right: 2rem;
+            padding: 1rem 2rem;
+            background: var(--card-bg);
+            border-left: 4px solid var(--accent-primary);
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: translateX(200%);
+            transition: transform 0.3s ease;
+            z-index: 2000;
+        }
+        .toast.show { transform: translateX(0); }
+
+    </style>
+</head>
+<body>
+
+    <!-- Login -->
+    <div id="login-screen" class="center flex">
+        <div class="login-card">
+            <div class="login-title">System // Access</div>
+            <input type="password" id="password-input" placeholder="输入访问密钥" onkeyup="if(event.key==='Enter') login()">
+            <button onclick="login()">Authenticate</button>
+            <div id="login-msg" style="margin-top: 1rem; height: 1.2rem; color: var(--danger); font-size: 0.8rem;"></div>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="hidden">
+        <header>
+            <h1>SERVER <span>STATUS_V1.0</span></h1>
+            <button onclick="logout()" style="width: auto; background: transparent; border: 1px solid var(--card-border);">LOGOUT</button>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">CPU Usage</div>
+                <div class="stat-value" id="cpu-val">--%</div>
+                <div class="stat-chart-bg"><div class="stat-chart-fill" id="cpu-bar"></div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Memory Usage</div>
+                <div class="stat-value" id="mem-val">--%</div>
+                <div class="stat-chart-bg"><div class="stat-chart-fill" id="mem-bar" style="background: var(--accent-secondary)"></div></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Disk Status</div>
+                <div class="stat-value" id="disk-val">--%</div>
+                <div class="stat-chart-bg"><div class="stat-chart-fill" id="disk-bar" style="background: var(--success)"></div></div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Active Containers</span>
+                    <button style="width: auto; padding: 4px 10px; font-size: 0.8rem;" onclick="addLog('Refreshing container list...', 'INFO'); refreshTable()">Refresh</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>ID</th>
+                                <th>Image</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="container-list">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">System Logs</div>
+                <div id="log-terminal">
+                    <!-- Logs go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Action Executed Successfully</div>
+
+    <script>
+        const PASSWORD = "webwww123";
+        
+        // Mock Data
+        const mockContainers = [
+            { id: "a1b2c3d4", name: "nginx-proxy", image: "nginx:latest", status: "running" },
+            { id: "e5f6g7h8", name: "db-postgres", image: "postgres:14", status: "running" },
+            { id: "i9j0k1l2", name: "web-app-v1", image: "node:16-alpine", status: "stopped" },
+            { id: "m3n4o5p6", name: "redis-cache", image: "redis:alpine", status: "running" },
+            { id: "q7r8s9t0", name: "worker-job", image: "python:3.9", status: "stopped" },
+        ];
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('auth_token') === 'verified') {
+                showDashboard();
+            }
+        });
+
+        function login() {
+            const input = document.getElementById('password-input');
+            const msg = document.getElementById('login-msg');
+            
+            if (input.value === PASSWORD) {
+                localStorage.setItem('auth_token', 'verified');
+                showDashboard();
+            } else {
+                msg.textContent = "ACCESS DENIED // 密码错误";
+                input.value = "";
+                input.focus();
+                // Shake animation effect
+                const card = document.querySelector('.login-card');
+                card.style.transform = "translateX(10px)";
+                setTimeout(() => card.style.transform = "translateX(-10px)", 100);
+                setTimeout(() => card.style.transform = "translateX(0)", 200);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            location.reload();
+        }
+
+        function showDashboard() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            startSimulation();
+            renderContainers();
+            addLog("System initialized. User authenticated.", "INFO");
+        }
+
+        // Dashboard Logic
+        function startSimulation() {
+            setInterval(() => {
+                const cpu = Math.floor(Math.random() * 60) + 10;
+                const mem = Math.floor(Math.random() * 40) + 30;
+                const disk = 45; // Static-ish
+
+                updateStat('cpu', cpu);
+                updateStat('mem', mem);
+                updateStat('disk', disk);
+            }, 2000);
+        }
+
+        function updateStat(type, val) {
+            document.getElementById(`${type}-val`).textContent = `${val}%`;
+            document.getElementById(`${type}-bar`).style.width = `${val}%`;
+        }
+
+        function renderContainers() {
+            const tbody = document.getElementById('container-list');
+            tbody.innerHTML = '';
+            
+            mockContainers.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: bold; color: var(--accent-primary)">${c.name}</td>
+                    <td style="font-family: monospace; color: var(--text-muted)">${c.id.substring(0,8)}</td>
+                    <td>${c.image}</td>
+                    <td><span class="status-badge ${c.status === 'running' ? 'status-running' : 'status-stopped'}">${c.status.toUpperCase()}</span></td>
+                    <td class="actions">
+                        <button onclick="handleAction('${c.name}', '${c.status === 'running' ? 'stop' : 'start'}')">
+                            ${c.status === 'running' ? 'STOP' : 'START'}
+                        </button>
+                        <button onclick="handleAction('${c.name}', 'restart')">RESTART</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function handleAction(name, action) {
+            addLog(`Requesting to ${action.toUpperCase()} container: ${name}...`, 'WARN');
+            
+            // Limit fake latency
+            setTimeout(() => {
+                if (Math.random() > 0.1) {
+                    addLog(`Successfully executed ${action} on ${name}`, 'INFO');
+                    showToast(`${action.toUpperCase()} success: ${name}`);
+                    
+                    // Update mock state
+                    const target = mockContainers.find(c => c.name === name);
+                    if (target) {
+                        if (action === 'start') target.status = 'running';
+                        if (action === 'stop') target.status = 'stopped';
+                        // restart keeps same status usually or goes running
+                        if (action === 'restart') target.status = 'running';
+                        renderContainers();
+                    }
+                } else {
+                    addLog(`Failed to execute ${action} on ${name}`, 'ERR');
+                }
+            }, 800);
+        }
+
+        function addLog(msg, type = 'INFO') {
+            const term = document.getElementById('log-terminal');
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            const time = new Date().toLocaleTimeString();
+            
+            let colorClass = 'log-info';
+            if (type === 'WARN') colorClass = 'log-warn';
+            if (type === 'ERR') colorClass = 'log-err';
+
+            div.innerHTML = `<span class="log-time">[${time}]</span> <span class="${colorClass}">${type}:</span> ${msg}`;
+            term.insertBefore(div, term.firstChild); // Insert at top (scrolled to bottom via CSS flex-reverse)
+        }
+        
+        function showToast(text) {
+            const t = document.getElementById('toast');
+            t.textContent = text;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function refreshTable() {
+            setTimeout(() => {
+                renderContainers();
+                addLog("Container list verified.", "INFO");
+            }, 500);
+        }
+    </script>
+</body>
+</html>

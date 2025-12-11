@@ -1,0 +1,37 @@
+# Node
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# Build
+*.exe
+server-linux
+lsr-*
+
+# Environment
+.env
+.env.local
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+data/
+
+# Temp
+*.tmp
+*.temp
+
+# Go
+*.test
+coverage.out
