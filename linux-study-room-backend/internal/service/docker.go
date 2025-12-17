@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -41,7 +43,13 @@ var dockerfiles = map[string]string{
 RUN apk add --no-cache fish
 CMD ["fish"]`,
 	"lsr-debian": `FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends fish && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends fish && apt-get clean
+CMD ["fish"]`,
+	"lsr-ubuntu": `FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y --no-install-recommends fish && apt-get clean
+CMD ["fish"]`,
+	"lsr-arch": `FROM archlinux:latest
+RUN pacman -Syu --noconfirm && pacman -S --noconfirm fish && pacman -Scc --noconfirm
 CMD ["fish"]`,
 }
 
@@ -59,6 +67,11 @@ func NewDockerService() (*DockerService, error) {
 	}
 	
 	log.Println("✅ Connected to Docker daemon")
+	
+	// Check if running inside Docker (Docker-in-Docker scenario)
+	if isRunningInDocker() {
+		log.Println("🐋 Detected Docker-in-Docker environment - containers will run as siblings")
+	}
 	
 	svc := &DockerService{cli: cli}
 	
@@ -157,6 +170,10 @@ func (d *DockerService) CreateContainer(ctx context.Context, cfg *ContainerConfi
 	imageName := "lsr-alpine"
 	if cfg.OSType == "debian" {
 		imageName = "lsr-debian"
+	} else if cfg.OSType == "ubuntu" {
+		imageName = "lsr-ubuntu"
+	} else if cfg.OSType == "arch" {
+		imageName = "lsr-arch"
 	}
 
 	// Check if image already exists
@@ -337,4 +354,23 @@ func (d *DockerService) ResizeExecTTY(ctx context.Context, execID string, cols, 
 		Height: rows,
 		Width:  cols,
 	})
+}
+
+// isRunningInDocker detects if the current process is running inside a Docker container
+func isRunningInDocker() bool {
+	// Check for .dockerenv file (most reliable)
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+	
+	// Check cgroup for docker/containerd
+	data, err := os.ReadFile("/proc/1/cgroup")
+	if err == nil {
+		content := string(data)
+		if strings.Contains(content, "docker") || strings.Contains(content, "containerd") {
+			return true
+		}
+	}
+	
+	return false
 }

@@ -39,6 +39,23 @@
           </template>
       </div>
 
+      <!-- Helper Control Banner (Visible when being helped) -->
+      <div v-if="helpers && helpers.length > 0" class="absolute top-2 left-4 z-10 flex items-center gap-2">
+        <div class="px-3 py-1.5 rounded-lg bg-purple-500/20 backdrop-blur border border-purple-500/30 flex items-center gap-2">
+          <span class="text-[10px] text-purple-400 uppercase tracking-wider">🎮 正在被协助</span>
+          <div class="flex items-center gap-1">
+            <span v-for="helper in helpers" :key="helper" class="flex items-center gap-1 bg-purple-500/30 px-2 py-0.5 rounded text-xs text-purple-300">
+              {{ helper }}
+              <button 
+                @click="emit('revoke-helper', helper)"
+                class="ml-1 text-purple-400 hover:text-red-400 transition-colors"
+                title="踢出协助者"
+              >✕</button>
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Connection Status Overlay -->
       <div v-if="connectionState !== 'connected' || isInstalling" class="absolute inset-0 bg-galaxy-bg/90 backdrop-blur-sm z-20 flex items-center justify-center">
           <div class="text-center">
@@ -84,10 +101,11 @@ const props = defineProps<{
     avatar: string | null;
     provider: string;
     containerId?: string;
-  } | null
+  } | null;
+  helpers?: string[];  // List of helpers currently controlling this terminal
 }>()
 
-const emit = defineEmits(['request-setup', 'container-ready'])
+const emit = defineEmits(['request-setup', 'container-ready', 'revoke-helper'])
 
 const terminalContainer = ref<HTMLElement | null>(null)
 let term: Terminal | null = null
@@ -188,6 +206,7 @@ const connectToContainer = async () => {
     const username = props.user?.username || 'Guest'
     const name = props.user?.name || username // Use nickname if available
     const os = props.user?.os || 'linux' // Use actual OS type (alpine/debian)
+    const avatar = props.user?.avatar || '' // Use user's avatar (LinuxDo avatar)
     
     termSocket = createTerminalSocket(cid, username, os, {
       onOpen: () => {
@@ -238,7 +257,7 @@ const connectToContainer = async () => {
           connectionMessage.value = 'Connection closed unexpectedly.'
         }
       }
-    }, name)
+    }, name, avatar)
 
   } catch (err) {
     connectionState.value = 'error'

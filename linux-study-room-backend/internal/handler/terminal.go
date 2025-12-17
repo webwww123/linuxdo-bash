@@ -77,7 +77,11 @@ func (h *TerminalHandler) Handle(c *gin.Context) {
 	}
 
 	// Register session
-	avatar := "https://api.dicebear.com/7.x/avataaars/svg?seed=" + username
+	// Get avatar from query, fallback to dicebear
+	avatar := c.Query("avatar")
+	if avatar == "" {
+		avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + username
+	}
 	name := c.Query("name")
 	if name == "" {
 		name = username
@@ -158,12 +162,12 @@ func (h *TerminalHandler) Handle(c *gin.Context) {
 			if n > 0 {
 				output := string(buf[:n])
 				
-				// Store raw output for xterm.js rendering
+				// Store raw output for xterm.js rendering (increased capacity for more history)
 				rawSnapshotBuffer.WriteString(output)
-				if rawSnapshotBuffer.Len() > 4000 {
+				if rawSnapshotBuffer.Len() > 16000 {
 					s := rawSnapshotBuffer.String()
 					rawSnapshotBuffer.Reset()
-					rawSnapshotBuffer.WriteString(s[len(s)-3000:])
+					rawSnapshotBuffer.WriteString(s[len(s)-12000:])
 				}
 				
 				// Store cleaned output for fallback text display
@@ -309,10 +313,10 @@ func (h *TerminalHandler) HandleHelper(c *gin.Context) {
 				
 				// Also update the main session's snapshot for LiveWall sync
 				rawSnapshotBuffer.WriteString(output)
-				if rawSnapshotBuffer.Len() > 4000 {
+				if rawSnapshotBuffer.Len() > 16000 {
 					s := rawSnapshotBuffer.String()
 					rawSnapshotBuffer.Reset()
-					rawSnapshotBuffer.WriteString(s[len(s)-3000:])
+					rawSnapshotBuffer.WriteString(s[len(s)-12000:])
 				}
 				cleanOutput := service.StripANSI(output)
 				service.Sessions.UpdateSnapshot(containerID, rawSnapshotBuffer.String(), cleanOutput)

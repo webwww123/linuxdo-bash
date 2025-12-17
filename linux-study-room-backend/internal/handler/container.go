@@ -24,7 +24,7 @@ func NewContainerHandler(dockerSvc *service.DockerService, db *sql.DB) *Containe
 
 // LaunchRequest represents container launch request
 type LaunchRequest struct {
-	OSType   string `json:"os_type" binding:"required,oneof=alpine debian"`
+	OSType   string `json:"os_type" binding:"required,oneof=alpine debian ubuntu arch"`
 	Username string `json:"username"`
 }
 

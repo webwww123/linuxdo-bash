@@ -147,7 +147,12 @@
     <div class="border-t border-galaxy-border bg-galaxy-bg/30 backdrop-blur-sm flex flex-col shrink-0" :style="{height: chatHeight + 'px'}">
        <div class="flex-1 p-4 space-y-3 overflow-y-auto text-xs" ref="chatContainer">
           <div v-for="(msg, index) in messages" :key="index" class="flex gap-2 animate-fadeIn">
-             <span class="font-bold shrink-0" :class="msg.isMe ? 'text-galaxy-accent' : 'text-galaxy-primary'">{{ msg.user }}</span>
+             <span 
+               class="font-bold shrink-0 cursor-pointer hover:underline" 
+               :class="msg.isMe ? 'text-galaxy-accent' : 'text-galaxy-primary'"
+               @click="mentionUser(msg.user)"
+               :title="'点击@' + msg.user"
+             >{{ msg.user }}</span>
              <div class="flex-1 min-w-0">
                <img v-if="isImage(msg.content)" :src="msg.content" class="max-w-[200px] max-h-[150px] rounded border border-galaxy-border cursor-pointer hover:border-galaxy-accent hover:scale-105 transition-all" @click="openImagePreview(msg.content)" />
                <span v-else class="text-galaxy-text leading-relaxed break-all">{{ msg.content }}</span>
@@ -242,6 +247,7 @@ const emit = defineEmits<{
   'invite-rejected': [data: { helper: string }]
   'control-revoked': [data: { owner: string }]
   'helper-left': [data: { helper: string }]
+  'helpers-updated': [helpers: string[]]  // New: current user's helpers list
   'send-invite': [data: { targetUsername: string }]
   'accept-invite': [data: { containerId: string }]
   'reject-invite': [data: { containerId: string }]
@@ -427,20 +433,23 @@ const sessions = ref<Session[]>([])
 const myPinnedSessions = ref<Set<string>>(new Set()) // Track sessions pinned by current user
 let lobbySocket: ReturnType<typeof createLobbySocket> | null = null
 
-// Sort sessions: self first, then others (to avoid "first slot" issues)
+// Sort sessions: self first, then pinned by me, then others
 const displaySessions = computed(() => {
   if (!props.currentUser) return sessions.value
   
   const myName = props.currentUser.username
-  // Sort: self first, then by pinCount desc, then by username
+  // Sort: self first, then my pinned sessions, then others by username
   return [...sessions.value].sort((a, b) => {
     // Self always first
     if (a.username === myName) return -1
     if (b.username === myName) return 1
-    // Then by pinCount (higher first)
-    if ((a.pinCount || 0) !== (b.pinCount || 0)) {
-      return (b.pinCount || 0) - (a.pinCount || 0)
-    }
+    
+    // Then by my local pinned status (pinned first)
+    const aIsPinned = a.containerId && myPinnedSessions.value.has(a.containerId)
+    const bIsPinned = b.containerId && myPinnedSessions.value.has(b.containerId)
+    if (aIsPinned && !bIsPinned) return -1
+    if (!aIsPinned && bIsPinned) return 1
+    
     // Then by username alphabetically
     return a.username.localeCompare(b.username)
   })
@@ -476,6 +485,16 @@ const connectLobby = () => {
       onUsers: (count, sessionList) => {
         onlineCount.value = count
         sessions.value = sessionList || []
+        
+        // Find current user's session and emit helpers update
+        if (props.currentUser) {
+          const mySession = sessionList?.find(s => s.username === props.currentUser?.username)
+          if (mySession && mySession.helpers) {
+            emit('helpers-updated', mySession.helpers)
+          } else {
+            emit('helpers-updated', [])
+          }
+        }
       },
       onChat: (user, content, ts) => {
         messages.value.push({
@@ -516,16 +535,54 @@ const connectLobby = () => {
       onInviteRejected: (helper) => {
         emit('invite-rejected', { helper })
       },
+      // New: invite sent confirmation
+      onInviteSent: (content, inviteTo) => {
+        messages.value.push({
+          user: 'System',
+          content: `✅ ${content}`,
+          isMe: false
+        })
+        scrollToBottom()
+      },
+      // New: invite error (cooldown)
+      onInviteError: (content, cooldownRemaining) => {
+        messages.value.push({
+          user: 'System',
+          content: `⏳ ${content} (${cooldownRemaining}s)`,
+          isMe: false
+        })
+        scrollToBottom()
+      },
+      // New: someone rejected our invite
+      onInviteRejectedNotify: (rejecter, content) => {
+        messages.value.push({
+          user: 'System',
+          content: `❌ ${content}`,
+          isMe: false
+        })
+        scrollToBottom()
+      },
       onControlRevoked: (owner) => {
         emit('control-revoked', { owner })
       },
       onHelperLeft: (helper) => {
         emit('helper-left', { helper })
       },
+      // New: owner cancelled
+      onOwnerCancel: (owner, content) => {
+        messages.value.push({
+          user: 'System',
+          content: `🚫 ${content}`,
+          isMe: false
+        })
+        scrollToBottom()
+      },
       onError: (err) => {
         console.error('Lobby WS error:', err)
       }
-    }
+    },
+    (props.currentUser as any).name || props.currentUser.username,  // Pass display name
+    props.currentUser.avatar || ''  // Pass avatar URL
   )
 }
 
@@ -658,6 +715,14 @@ const handleInvite = (session: Session) => {
   // Note: System message is now broadcasted by backend, no need to add locally
 }
 
+// Mention user - insert @username into input field
+const mentionUser = (username: string) => {
+  if (username === 'System') return // Don't mention system
+  if (!inputMessage.value.includes(`@${username}`)) {
+    inputMessage.value = `@${username} ${inputMessage.value}`.trim()
+  }
+}
+
 // Flying heart animation
 const createFlyingHeart = (containerId: string) => {
   const container = document.getElementById(`hearts-${containerId}`)
@@ -712,10 +777,17 @@ const sendHelperLeave = (containerId: string) => {
   }
 }
 
+const sendControlRevoke = (helperUsername: string) => {
+  if (lobbySocket) {
+    lobbySocket.sendControlRevoke(helperUsername)
+  }
+}
+
 defineExpose({
   sendInviteAccept,
   sendInviteReject,
-  sendHelperLeave
+  sendHelperLeave,
+  sendControlRevoke
 })
 
 watch(() => props.currentUser, (newUser, oldUser) => {

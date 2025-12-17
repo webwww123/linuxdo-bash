@@ -152,6 +152,9 @@ const isHelperMode = ref(false)
 const helpingContainerId = ref<string | null>(null)
 const helpingOwnerUsername = ref<string | null>(null)
 
+// Track helpers controlling my terminal
+const myHelpers = ref<string[]>([])
+
 // LiveWall ref for calling methods
 const liveWallRef = ref<InstanceType<typeof LiveWall> | null>(null)
 
@@ -214,6 +217,18 @@ const handleControlRevoked = (data: { owner: string }) => {
 const handleContainerReady = (containerId: string) => {
   if (currentUser.value) {
     currentUser.value = { ...currentUser.value, containerId }
+  }
+}
+
+// Handle helpers list update from LiveWall
+const handleHelpersUpdated = (helpers: string[]) => {
+  myHelpers.value = helpers
+}
+
+// Handle request to revoke a helper's access
+const handleRevokeHelper = (helperUsername: string) => {
+  if (liveWallRef.value) {
+    liveWallRef.value.sendControlRevoke(helperUsername)
   }
 }
 </script>
@@ -299,9 +314,11 @@ const handleContainerReady = (containerId: string) => {
         <Terminal 
           v-show="!isHelperMode"
           :key="'terminal-' + (currentUser?.containerId || 'none')"
-          :user="currentUser" 
+          :user="currentUser"
+          :helpers="myHelpers"
           @request-setup="openSetupWizard" 
           @container-ready="handleContainerReady"
+          @revoke-helper="handleRevokeHelper"
         />
       </div>
 
@@ -326,6 +343,7 @@ const handleContainerReady = (containerId: string) => {
          :current-user="currentUser" 
          @invite-received="handleInviteReceived"
          @control-revoked="handleControlRevoked"
+         @helpers-updated="handleHelpersUpdated"
        />
     </aside>
 

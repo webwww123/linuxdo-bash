@@ -14,26 +14,33 @@ import (
 	"github.com/linuxstudyroom/backend/internal/store"
 )
 
+// Invite cooldown duration
+const inviteCooldownSeconds = 30
+
 // LobbyHandler handles lobby/chat WebSocket connections
 type LobbyHandler struct {
-	clients map[*websocket.Conn]*LobbyClient
-	mu      sync.RWMutex
-	db      *sql.DB
+	clients         map[*websocket.Conn]*LobbyClient
+	mu              sync.RWMutex
+	db              *sql.DB
+	inviteCooldowns map[string]time.Time // Track invite cooldowns per user
+	cooldownMu      sync.RWMutex
 }
 
 // LobbyClient represents a connected client
 type LobbyClient struct {
 	Username string
+	Name     string // Display name (nickname)
 	Avatar   string
 	OS       string
 }
 
 // LobbyMessage represents lobby WebSocket message
 type LobbyMessage struct {
-	Type              string        `json:"type"` // "users", "chat", "join", "leave", "snapshots", "like", "pin", "unpin", "history", "invite", "invite_accept", "invite_reject", "control_revoke", "helper_leave"
+	Type              string        `json:"type"` // "users", "chat", "join", "leave", "snapshots", "like", "pin", "unpin", "history", "invite", "invite_accept", "invite_reject", "invite_sent", "invite_rejected_notify", "control_revoke", "helper_leave", "owner_cancel"
 	Count             int           `json:"count,omitempty"`
 	Sessions          []SessionInfo `json:"sessions,omitempty"`
 	User              string        `json:"user,omitempty"`
+	UserName          string        `json:"userName,omitempty"`          // Display name for chat messages
 	Content           string        `json:"content,omitempty"`
 	Timestamp         int64         `json:"ts,omitempty"`
 	TargetContainerID string        `json:"targetContainerId,omitempty"` // For like/pin/unpin
@@ -41,6 +48,7 @@ type LobbyMessage struct {
 	Messages          []ChatHistory `json:"messages,omitempty"`          // For history
 	InviteFrom        string        `json:"inviteFrom,omitempty"`        // Inviter username (for invite messages)
 	InviteTo          string        `json:"inviteTo,omitempty"`          // Invitee username (for invite messages)
+	CooldownRemaining int           `json:"cooldownRemaining,omitempty"` // Remaining cooldown seconds
 }
 
 // ChatHistory represents a historical chat message
@@ -67,8 +75,9 @@ type SessionInfo struct {
 // NewLobbyHandler creates a new lobby handler
 func NewLobbyHandler(db *sql.DB) *LobbyHandler {
 	h := &LobbyHandler{
-		clients: make(map[*websocket.Conn]*LobbyClient),
-		db:      db,
+		clients:         make(map[*websocket.Conn]*LobbyClient),
+		db:              db,
+		inviteCooldowns: make(map[string]time.Time),
 	}
 	
 	// Start snapshot broadcaster
@@ -139,10 +148,23 @@ func (h *LobbyHandler) Handle(c *gin.Context) {
 	if username == "" {
 		username = "Guest_" + c.ClientIP()
 	}
+	
+	// Get display name from query, fallback to username
+	name := c.Query("name")
+	if name == "" {
+		name = username
+	}
+	
+	// Get avatar from query, fallback to dicebear
+	avatar := c.Query("avatar")
+	if avatar == "" {
+		avatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=" + username
+	}
 
 	client := &LobbyClient{
 		Username: username,
-		Avatar:   "https://api.dicebear.com/7.x/avataaars/svg?seed=" + username,
+		Name:     name,
+		Avatar:   avatar,
 		OS:       c.Query("os"),
 	}
 
@@ -193,14 +215,15 @@ func (h *LobbyHandler) Handle(c *gin.Context) {
 
 		switch msg.Type {
 		case "chat":
-			// Save to database
+			// Save to database (use username for storage, name for display)
 			if h.db != nil {
-				store.SaveChatMessage(h.db, username, client.Avatar, msg.Content, "text")
+				store.SaveChatMessage(h.db, client.Name, client.Avatar, msg.Content, "text")
 			}
-			// Broadcast chat message
+			// Broadcast chat message with display name
 			chatMsg := LobbyMessage{
 				Type:      "chat",
-				User:      username,
+				User:      client.Name, // Use display name instead of username
+				UserName:  username,    // Keep username for internal reference
 				Content:   msg.Content,
 				Timestamp: time.Now().Unix(),
 			}
@@ -266,6 +289,28 @@ func (h *LobbyHandler) Handle(c *gin.Context) {
 			// msg.InviteTo = target username to invite
 			log.Printf("📨 Invite request received: from=%s, to=%s", username, msg.InviteTo)
 			if msg.InviteTo != "" {
+				// Check cooldown
+				h.cooldownMu.RLock()
+				lastInvite, hasCooldown := h.inviteCooldowns[username]
+				h.cooldownMu.RUnlock()
+				
+				if hasCooldown {
+					remaining := int(inviteCooldownSeconds - time.Since(lastInvite).Seconds())
+					if remaining > 0 {
+						// Send cooldown error back to sender
+						errMsg := LobbyMessage{
+							Type:              "invite_error",
+							User:              username,
+							Content:           "请等待冷却时间结束后再邀请",
+							CooldownRemaining: remaining,
+							Timestamp:         time.Now().Unix(),
+						}
+						conn.WriteJSON(errMsg)
+						log.Printf("❌ Invite cooldown: %s has %d seconds remaining", username, remaining)
+						continue
+					}
+				}
+				
 				// Find inviter's session
 				inviterSession := service.Sessions.GetSessionByUsername(username)
 				if inviterSession == nil {
@@ -275,8 +320,24 @@ func (h *LobbyHandler) Handle(c *gin.Context) {
 				
 				log.Printf("✅ Inviter session found: %s -> container %s", username, inviterSession.ContainerID[:12])
 				
+				// Update cooldown
+				h.cooldownMu.Lock()
+				h.inviteCooldowns[username] = time.Now()
+				h.cooldownMu.Unlock()
+				
 				// Set pending invite
 				service.Sessions.SetPendingInvite(inviterSession.ContainerID, msg.InviteTo)
+				
+				// Send confirmation to inviter
+				sentMsg := LobbyMessage{
+					Type:              "invite_sent",
+					User:              username,
+					InviteTo:          msg.InviteTo,
+					TargetContainerID: inviterSession.ContainerID,
+					Content:           "邀请已发送，等待 " + msg.InviteTo + " 回应",
+					Timestamp:         time.Now().Unix(),
+				}
+				conn.WriteJSON(sentMsg)
 				
 				// Broadcast invite to all (target will filter)
 				inviteMsg := LobbyMessage{
@@ -335,6 +396,7 @@ func (h *LobbyHandler) Handle(c *gin.Context) {
 					inviterUsername = targetSession.Username
 				}
 				
+				// Broadcast reject event
 				rejectMsg := LobbyMessage{
 					Type:              "invite_reject",
 					User:              username,
@@ -343,6 +405,18 @@ func (h *LobbyHandler) Handle(c *gin.Context) {
 					Timestamp:         time.Now().Unix(),
 				}
 				h.broadcast(rejectMsg)
+				
+				// Send direct notification to inviter
+				notifyMsg := LobbyMessage{
+					Type:              "invite_rejected_notify",
+					User:              username, // Person who rejected
+					TargetUsername:    inviterUsername,
+					Content:           username + " 拒绝了你的邀请",
+					TargetContainerID: msg.TargetContainerID,
+					Timestamp:         time.Now().Unix(),
+				}
+				h.broadcast(notifyMsg)
+				
 				log.Printf("❌ %s rejected invite from %s", username, inviterUsername)
 			}
 		
@@ -388,6 +462,27 @@ func (h *LobbyHandler) Handle(c *gin.Context) {
 					h.broadcast(leaveMsg)
 					log.Printf("👋 %s stopped helping %s", username, ownerUsername)
 				}
+			}
+		
+		case "owner_cancel":
+			// Owner cancels pending invite or kicks all helpers
+			ownerSession := service.Sessions.GetSessionByUsername(username)
+			if ownerSession != nil {
+				// Clear pending invite if any
+				service.Sessions.ClearPendingInvite(ownerSession.ContainerID)
+				
+				// Remove all helpers
+				service.Sessions.ClearAllHelpers(ownerSession.ContainerID)
+				
+				cancelMsg := LobbyMessage{
+					Type:              "owner_cancel",
+					User:              username,
+					TargetContainerID: ownerSession.ContainerID,
+					Content:           username + " 取消了邀请/结束了协助",
+					Timestamp:         time.Now().Unix(),
+				}
+				h.broadcast(cancelMsg)
+				log.Printf("🚫 %s cancelled invite/helpers", username)
 			}
 		}
 	}

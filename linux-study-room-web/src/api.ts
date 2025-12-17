@@ -74,8 +74,9 @@ export function createTerminalSocket(containerId: string, username: string, os: 
     onStatus: (status: string) => void;
     onError: (error: Event) => void;
     onClose?: () => void;
-}, name?: string) {
-    const ws = new WebSocket(`${WS_BASE}/ws/terminal?container_id=${containerId}&username=${encodeURIComponent(username)}&os=${encodeURIComponent(os)}&name=${encodeURIComponent(name || username)}`);
+}, name?: string, avatar?: string) {
+    const wsUrl = `${WS_BASE}/ws/terminal?container_id=${containerId}&username=${encodeURIComponent(username)}&os=${encodeURIComponent(os)}&name=${encodeURIComponent(name || username)}&avatar=${encodeURIComponent(avatar || '')}`;
+    const ws = new WebSocket(wsUrl);
     let isOpen = false;
 
     ws.onopen = () => {
@@ -132,11 +133,16 @@ export function createLobbySocket(username: string, os: string, handlers: {
     onInvite?: (from: string, fromContainerId: string) => void;
     onInviteAccepted?: (helper: string, containerId: string) => void;
     onInviteRejected?: (helper: string) => void;
+    onInviteSent?: (content: string, inviteTo: string) => void;  // New: confirmation that invite was sent
+    onInviteError?: (content: string, cooldownRemaining: number) => void;  // New: invite error with cooldown
+    onInviteRejectedNotify?: (rejecter: string, content: string) => void;  // New: notification that someone rejected
     onControlRevoked?: (owner: string) => void;
     onHelperLeft?: (helper: string) => void;
+    onOwnerCancel?: (owner: string, content: string) => void;  // New: owner cancelled invite/helpers
     onError: (error: Event) => void;
-}) {
-    const ws = new WebSocket(`${WS_BASE}/ws/lobby?username=${encodeURIComponent(username)}&os=${os}`);
+}, name?: string, avatar?: string) {
+    const wsUrl = `${WS_BASE}/ws/lobby?username=${encodeURIComponent(username)}&os=${os}&name=${encodeURIComponent(name || username)}&avatar=${encodeURIComponent(avatar || '')}`;
+    const ws = new WebSocket(wsUrl);
     let isOpen = false;
 
     ws.onopen = () => {
@@ -171,6 +177,17 @@ export function createLobbySocket(username: string, os: string, handlers: {
                 handlers.onInviteAccepted?.(msg.user, msg.targetContainerId);
             } else if (msg.type === 'invite_reject') {
                 handlers.onInviteRejected?.(msg.user);
+            } else if (msg.type === 'invite_sent') {
+                // Confirmation that invite was sent
+                handlers.onInviteSent?.(msg.content, msg.inviteTo);
+            } else if (msg.type === 'invite_error') {
+                // Invite failed (e.g., cooldown)
+                handlers.onInviteError?.(msg.content, msg.cooldownRemaining);
+            } else if (msg.type === 'invite_rejected_notify') {
+                // Someone rejected our invite
+                if (msg.targetUsername === username) {
+                    handlers.onInviteRejectedNotify?.(msg.user, msg.content);
+                }
             } else if (msg.type === 'control_revoke') {
                 // If we are the helper being revoked
                 if (msg.targetUsername === username) {
@@ -178,6 +195,9 @@ export function createLobbySocket(username: string, os: string, handlers: {
                 }
             } else if (msg.type === 'helper_leave') {
                 handlers.onHelperLeft?.(msg.user);
+            } else if (msg.type === 'owner_cancel') {
+                // Owner cancelled invite or kicked helpers
+                handlers.onOwnerCancel?.(msg.user, msg.content);
             }
         } catch {
             // Ignore parse errors
@@ -231,6 +251,11 @@ export function createLobbySocket(username: string, os: string, handlers: {
         sendHelperLeave: (containerId: string) => {
             if (isOpen && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'helper_leave', targetContainerId: containerId }));
+            }
+        },
+        sendOwnerCancel: () => {
+            if (isOpen && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'owner_cancel' }));
             }
         },
         close: () => ws.close(),
